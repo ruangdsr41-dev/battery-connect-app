@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Car, Bike, Truck, Loader2, History, X } from "lucide-react";
+import { Search, Car, Bike, Truck, Loader2, History, X, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
