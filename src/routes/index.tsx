@@ -198,7 +198,18 @@ function SearchPage() {
                   ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
                   : `Mostrando ${results.length} de ${rows.length}`}
               </span>
-              {isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isFetching}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium hover:border-primary/40 disabled:opacity-50"
+                aria-label="Atualizar planilha"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`}
+                />
+                Atualizar planilha
+              </button>
             </div>
 
             {results.length === 0 ? (
