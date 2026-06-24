@@ -36,6 +36,8 @@ function SearchPage() {
   const [q, setQ] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     setHistory(getHistory());
   }, []);
@@ -43,9 +45,15 @@ function SearchPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["sheet", category],
     queryFn: () => getApplications({ data: { category } }),
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
   });
+
+  async function handleRefresh() {
+    await getApplications({ data: { category, refresh: true } });
+    await queryClient.invalidateQueries({ queryKey: ["sheet", category] });
+    await refetch();
+  }
 
   const rows = data?.rows ?? [];
 
