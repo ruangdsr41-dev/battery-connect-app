@@ -31,13 +31,16 @@ export interface BatteryApplication {
   peso?: string;
   tecnologia?: string;
   garantia?: string;
+  validado?: string;
   obs?: string;
 }
+
+
 
 // Simple in-memory cache (server worker; resets on cold start)
 type CacheEntry = { ts: number; data: BatteryApplication[] };
 const cache = new Map<VehicleCategory, CacheEntry>();
-const TTL_MS = 1000 * 60 * 30; // 30 min
+const TTL_MS = 1000 * 60 * 5; // 5 min
 
 function pick(row: Record<string, string>, ...keys: string[]): string {
   for (const k of keys) {
@@ -51,9 +54,10 @@ function pick(row: Record<string, string>, ...keys: string[]): string {
 
 async function fetchCategory(
   category: VehicleCategory,
+  refresh = false,
 ): Promise<BatteryApplication[]> {
   const cached = cache.get(category);
-  if (cached && Date.now() - cached.ts < TTL_MS) return cached.data;
+  if (!refresh && cached && Date.now() - cached.ts < TTL_MS) return cached.data;
 
   const sheetName = SHEET_NAMES[category];
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
@@ -90,7 +94,8 @@ async function fetchCategory(
       peso: pick(row, "Peso (kg)"),
       tecnologia: pick(row, "Tecnologia"),
       garantia: pick(row, "Garantia", "Garantia (meses)"),
-      obs: pick(row, "OBS"),
+      validado: pick(row, "VALIDADO", "Validado"),
+      obs: pick(row, "OBS", "Observação", "Observacao"),
     }))
     .filter((r) => r.marca && r.modelo);
 
@@ -103,10 +108,11 @@ export const getApplications = createServerFn({ method: "GET" })
     z
       .object({
         category: z.enum(["carros", "motos", "caminhoes"]),
+        refresh: z.boolean().optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const rows = await fetchCategory(data.category);
+    const rows = await fetchCategory(data.category, data.refresh);
     return { rows, fetchedAt: new Date().toISOString() };
   });

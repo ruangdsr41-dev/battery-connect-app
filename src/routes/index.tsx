@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Car, Bike, Truck, Loader2, History, X } from "lucide-react";
+import { Search, Car, Bike, Truck, Loader2, History, X, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
@@ -36,6 +36,8 @@ function SearchPage() {
   const [q, setQ] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     setHistory(getHistory());
   }, []);
@@ -43,9 +45,15 @@ function SearchPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["sheet", category],
     queryFn: () => getApplications({ data: { category } }),
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
   });
+
+  async function handleRefresh() {
+    await getApplications({ data: { category, refresh: true } });
+    await queryClient.invalidateQueries({ queryKey: ["sheet", category] });
+    await refetch();
+  }
 
   const rows = data?.rows ?? [];
 
@@ -190,7 +198,18 @@ function SearchPage() {
                   ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
                   : `Mostrando ${results.length} de ${rows.length}`}
               </span>
-              {isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isFetching}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium hover:border-primary/40 disabled:opacity-50"
+                aria-label="Atualizar planilha"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`}
+                />
+                Atualizar planilha
+              </button>
             </div>
 
             {results.length === 0 ? (
