@@ -81,39 +81,20 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
         </div>
       )}
 
-      {hasDetails && (
-        <>
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            className="mt-3 flex w-full items-center justify-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            {open ? "Ocultar detalhes" : "Ver detalhes"}
-            <ChevronDown
-              className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
-            />
-          </button>
+      {hasDims && (
+        <dl className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px]">
+          <Spec label="C (mm)" value={app.comprimento} />
+          <Spec label="L (mm)" value={app.largura} />
+          <Spec label="A (mm)" value={app.altura} />
+          <Spec label="Peso (kg)" value={app.peso} />
+        </dl>
+      )}
 
-          {open && (
-            <div className="mt-3 space-y-3">
-              {hasDims && (
-                <dl className="grid grid-cols-4 gap-2 text-center text-[11px]">
-                  <Spec label="C (mm)" value={app.comprimento} />
-                  <Spec label="L (mm)" value={app.largura} />
-                  <Spec label="A (mm)" value={app.altura} />
-                  <Spec label="Peso (kg)" value={app.peso} />
-                </dl>
-              )}
-              {app.obs && (
-                <div className="flex gap-2 rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
-                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                  <p className="leading-relaxed">{app.obs}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </>
+      {app.obs && (
+        <div className="mt-3 flex gap-2 rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="leading-relaxed">{app.obs}</p>
+        </div>
       )}
     </article>
   );
