@@ -101,6 +101,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Encontre a bateria Moura certa para qualquer carro, moto ou caminhão.",
       },
       { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "Moura Baterias — Consulta de Aplicações" },
+      { name: "description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
+      { property: "og:description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
+      { name: "twitter:description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39280ee1-e4e3-4a3c-8895-9f2aae5874e2/id-preview-976996f2--1be47dd2-4701-4144-bdb3-4b8ed06317fc.lovable.app-1782268230915.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39280ee1-e4e3-4a3c-8895-9f2aae5874e2/id-preview-976996f2--1be47dd2-4701-4144-bdb3-4b8ed06317fc.lovable.app-1782268230915.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
