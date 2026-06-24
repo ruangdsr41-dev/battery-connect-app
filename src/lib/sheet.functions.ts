@@ -31,8 +31,11 @@ export interface BatteryApplication {
   peso?: string;
   tecnologia?: string;
   garantia?: string;
+  validado?: string;
   obs?: string;
 }
+
+
 
 // Simple in-memory cache (server worker; resets on cold start)
 type CacheEntry = { ts: number; data: BatteryApplication[] };
