@@ -40,7 +40,7 @@ export interface BatteryApplication {
 // Simple in-memory cache (server worker; resets on cold start)
 type CacheEntry = { ts: number; data: BatteryApplication[] };
 const cache = new Map<VehicleCategory, CacheEntry>();
-const TTL_MS = 1000 * 60 * 30; // 30 min
+const TTL_MS = 1000 * 60 * 5; // 5 min
 
 function pick(row: Record<string, string>, ...keys: string[]): string {
   for (const k of keys) {
