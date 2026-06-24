@@ -93,7 +93,8 @@ async function fetchCategory(
       peso: pick(row, "Peso (kg)"),
       tecnologia: pick(row, "Tecnologia"),
       garantia: pick(row, "Garantia", "Garantia (meses)"),
-      obs: pick(row, "OBS"),
+      validado: pick(row, "VALIDADO", "Validado"),
+      obs: pick(row, "OBS", "Observação", "Observacao"),
     }))
     .filter((r) => r.marca && r.modelo);
 
