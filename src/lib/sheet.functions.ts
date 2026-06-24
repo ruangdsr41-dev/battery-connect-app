@@ -6,10 +6,10 @@ const SHEET_ID = "1GxHw9m4xv_RgsW_nuDakt0OaQ_uai4Mif2Mt_YiuQY8";
 
 export type VehicleCategory = "carros" | "motos" | "caminhoes";
 
-const SHEET_NAMES: Record<VehicleCategory, string> = {
-  carros: "Carros",
-  motos: "Motos",
-  caminhoes: "Caminhões",
+const SHEET_GIDS: Record<VehicleCategory, string> = {
+  carros: "1",
+  motos: "2",
+  caminhoes: "3",
 };
 
 export interface BatteryApplication {
@@ -59,8 +59,8 @@ async function fetchCategory(
   const cached = cache.get(category);
   if (!refresh && cached && Date.now() - cached.ts < TTL_MS) return cached.data;
 
-  const sheetName = SHEET_NAMES[category];
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const gid = SHEET_GIDS[category];
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
   const res = await fetch(url, { headers: { "cache-control": "no-cache" } });
   if (!res.ok) throw new Error(`Falha ao ler planilha (${res.status})`);
   const csv = await res.text();
