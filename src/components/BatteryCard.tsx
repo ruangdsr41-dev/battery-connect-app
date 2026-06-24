@@ -90,12 +90,17 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
         </dl>
       )}
 
-      {app.obs && (
-        <div className="mt-3 flex gap-2 rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="leading-relaxed">{app.obs}</p>
+      <div className="mt-3 flex gap-2 rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <div className="flex-1 leading-relaxed">
+          <span className="mr-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            Obs:
+          </span>
+          <span className={app.obs ? "" : "italic text-muted-foreground/60"}>
+            {app.obs || "Sem observações"}
+          </span>
         </div>
-      )}
+      </div>
     </article>
   );
 }
