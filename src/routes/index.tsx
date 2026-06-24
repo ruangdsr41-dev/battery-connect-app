@@ -59,7 +59,7 @@ function SearchPage() {
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows.slice(0, 30);
+    if (!needle) return [];
     const tokens = needle.split(/\s+/).filter(Boolean);
     return rows
       .filter((r) => {

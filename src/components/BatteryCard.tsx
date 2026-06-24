@@ -1,4 +1,4 @@
-import { Star, Zap, ChevronDown, ShieldCheck, ShieldAlert, Info } from "lucide-react";
+import { Star, Zap, ShieldCheck, ShieldAlert, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
