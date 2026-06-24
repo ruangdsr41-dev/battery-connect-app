@@ -59,7 +59,7 @@ function SearchPage() {
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows.slice(0, 30);
+    if (!needle) return [];
     const tokens = needle.split(/\s+/).filter(Boolean);
     return rows
       .filter((r) => {
@@ -196,7 +196,7 @@ function SearchPage() {
               <span>
                 {q
                   ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
-                  : `Mostrando ${results.length} de ${rows.length}`}
+                  : "Pronto para pesquisar"}
               </span>
               <button
                 type="button"
@@ -212,7 +212,12 @@ function SearchPage() {
               </button>
             </div>
 
-            {results.length === 0 ? (
+            {!q ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                Digite marca, modelo, ano ou código acima para consultar as
+                aplicações Moura.
+              </div>
+            ) : results.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
                 Nenhuma aplicação encontrada para "{q}".
               </div>
