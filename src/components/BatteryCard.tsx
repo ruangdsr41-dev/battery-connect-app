@@ -5,7 +5,6 @@ import { isFavorite, toggleFavorite } from "@/lib/favorites";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setFav(isFavorite(app));
@@ -16,7 +15,7 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
 
   const validado = (app.validado || "").trim().toUpperCase() === "SIM";
   const hasDims = app.comprimento || app.largura || app.altura || app.peso;
-  const hasDetails = hasDims || app.obs;
+
 
   return (
     <article className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
