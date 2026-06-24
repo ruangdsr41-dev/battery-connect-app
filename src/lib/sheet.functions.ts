@@ -54,9 +54,10 @@ function pick(row: Record<string, string>, ...keys: string[]): string {
 
 async function fetchCategory(
   category: VehicleCategory,
+  refresh = false,
 ): Promise<BatteryApplication[]> {
   const cached = cache.get(category);
-  if (cached && Date.now() - cached.ts < TTL_MS) return cached.data;
+  if (!refresh && cached && Date.now() - cached.ts < TTL_MS) return cached.data;
 
   const sheetName = SHEET_NAMES[category];
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
