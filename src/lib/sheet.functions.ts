@@ -108,10 +108,11 @@ export const getApplications = createServerFn({ method: "GET" })
     z
       .object({
         category: z.enum(["carros", "motos", "caminhoes"]),
+        refresh: z.boolean().optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const rows = await fetchCategory(data.category);
+    const rows = await fetchCategory(data.category, data.refresh);
     return { rows, fetchedAt: new Date().toISOString() };
   });
