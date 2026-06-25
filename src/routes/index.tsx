@@ -1,14 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Car, Bike, Truck, Loader2, History, X, RefreshCw } from "lucide-react";
+import { Search, Loader2, History, X, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
-import {
-  getApplications,
-  type VehicleCategory,
-} from "@/lib/sheet.functions";
+import { getAllApplications } from "@/lib/sheet.functions";
 import { getHistory, pushHistory, type HistoryEntry } from "@/lib/favorites";
 
 export const Route = createFileRoute("/")({
@@ -25,14 +22,7 @@ export const Route = createFileRoute("/")({
   component: SearchPage,
 });
 
-const CATS: { id: VehicleCategory; label: string; Icon: typeof Car }[] = [
-  { id: "carros", label: "Carros", Icon: Car },
-  { id: "motos", label: "Motos", Icon: Bike },
-  { id: "caminhoes", label: "Caminhões", Icon: Truck },
-];
-
 function SearchPage() {
-  const [category, setCategory] = useState<VehicleCategory>("carros");
   const [q, setQ] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -43,15 +33,15 @@ function SearchPage() {
   }, []);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["sheet", category],
-    queryFn: () => getApplications({ data: { category } }),
+    queryKey: ["sheet", "all"],
+    queryFn: () => getAllApplications({ data: {} }),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
   });
 
   async function handleRefresh() {
-    await getApplications({ data: { category, refresh: true } });
-    await queryClient.invalidateQueries({ queryKey: ["sheet", category] });
+    await getAllApplications({ data: { refresh: true } });
+    await queryClient.invalidateQueries({ queryKey: ["sheet", "all"] });
     await refetch();
   }
 
@@ -82,11 +72,11 @@ function SearchPage() {
   useEffect(() => {
     if (!q.trim()) return;
     const t = setTimeout(() => {
-      pushHistory({ q: q.trim(), category });
+      pushHistory({ q: q.trim(), category: "all" });
       setHistory(getHistory());
     }, 1200);
     return () => clearTimeout(t);
-  }, [q, category]);
+  }, [q]);
 
   return (
     <AppShell>
@@ -99,28 +89,7 @@ function SearchPage() {
         </p>
       </section>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        {CATS.map(({ id, label, Icon }) => {
-          const active = category === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setCategory(id)}
-              className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-semibold transition-all ${
-                active
-                  ? "border-primary bg-primary text-primary-foreground yellow-glow"
-                  : "border-border bg-card text-foreground hover:border-primary/40"
-              }`}
-            >
-              <Icon className="h-6 w-6" />
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 relative">
+      <div className="mt-5 relative">
         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
@@ -152,10 +121,7 @@ function SearchPage() {
             {history.slice(0, 8).map((h) => (
               <button
                 key={`${h.q}-${h.ts}`}
-                onClick={() => {
-                  setCategory(h.category as VehicleCategory);
-                  setQ(h.q);
-                }}
+                onClick={() => setQ(h.q)}
                 className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:border-primary/40"
               >
                 {h.q}
