@@ -2,6 +2,7 @@ import { Star, Zap, ShieldCheck, ShieldAlert, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
+import { getBatteryImage } from "@/lib/battery-image";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
