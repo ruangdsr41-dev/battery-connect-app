@@ -16,6 +16,7 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
 
   const validado = (app.validado || "").trim().toUpperCase() === "SIM";
   const hasDims = app.comprimento || app.largura || app.altura || app.peso;
+  const img = getBatteryImage(app);
 
 
   return (
