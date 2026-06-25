@@ -55,6 +55,18 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
         </button>
       </div>
 
+      <div className="mt-3 flex items-center gap-3 rounded-lg bg-muted/40 p-2">
+        <img
+          src={img.url}
+          alt={img.label}
+          loading="lazy"
+          className="h-16 w-16 shrink-0 object-contain"
+        />
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          {img.label}
+        </div>
+      </div>
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-sm font-bold text-primary-foreground yellow-glow">
           <Zap className="h-3.5 w-3.5" />
