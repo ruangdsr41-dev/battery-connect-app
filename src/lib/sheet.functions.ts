@@ -127,3 +127,16 @@ export const getApplications = createServerFn({ method: "GET" })
     const rows = await fetchCategory(data.category, data.refresh);
     return { rows, fetchedAt: new Date().toISOString() };
   });
+
+export const getAllApplications = createServerFn({ method: "GET" })
+  .inputValidator((input) =>
+    z.object({ refresh: z.boolean().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data }) => {
+    const cats: VehicleCategory[] = ["carros", "motos", "caminhoes"];
+    const results = await Promise.all(
+      cats.map((c) => fetchCategory(c, data.refresh)),
+    );
+    const rows = results.flat();
+    return { rows, fetchedAt: new Date().toISOString() };
+  });
