@@ -17,6 +17,10 @@ export function getBatteryImage(app: BatteryApplication): {
   url: string;
   label: string;
 } {
+  // Prefer image URL from the spreadsheet column (per-code override)
+  if (app.imagemUrl && /^https?:\/\//i.test(app.imagemUrl)) {
+    return { url: app.imagemUrl, label: app.tecnologia || "Bateria" };
+  }
   const t = norm(app.tecnologia);
   const cat = app.category;
 

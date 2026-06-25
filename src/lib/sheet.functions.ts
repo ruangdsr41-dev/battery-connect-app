@@ -33,6 +33,7 @@ export interface BatteryApplication {
   garantia?: string;
   validado?: string;
   obs?: string;
+  imagemUrl?: string;
 }
 
 
@@ -96,6 +97,16 @@ async function fetchCategory(
       garantia: pick(row, "Garantia", "Garantia (meses)"),
       validado: pick(row, "VALIDADO", "Validado"),
       obs: pick(row, "OBS", "Observação", "Observacao"),
+      imagemUrl: pick(
+        row,
+        "Imagem",
+        "IMAGEM",
+        "Link Imagem",
+        "URL Imagem",
+        "Imagem URL",
+        "Foto",
+        "FOTO",
+      ),
     }))
     .filter((r) => r.marca && r.modelo);
 
