@@ -2,6 +2,7 @@ import { Star, Zap, ShieldCheck, ShieldAlert, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
+import { getBatteryImage } from "@/lib/battery-image";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
@@ -15,6 +16,7 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
 
   const validado = (app.validado || "").trim().toUpperCase() === "SIM";
   const hasDims = app.comprimento || app.largura || app.altura || app.peso;
+  const img = getBatteryImage(app);
 
 
   return (
@@ -51,6 +53,18 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
         >
           <Star className={`h-5 w-5 ${fav ? "fill-current" : ""}`} />
         </button>
+      </div>
+
+      <div className="mt-3 flex items-center gap-3 rounded-lg bg-muted/40 p-2">
+        <img
+          src={img.url}
+          alt={img.label}
+          loading="lazy"
+          className="h-16 w-16 shrink-0 object-contain"
+        />
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          {img.label}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
