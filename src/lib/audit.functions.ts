@@ -26,7 +26,7 @@ export const logEvent = createServerFn({ method: "POST" })
       user_id: userId,
       user_email: (claims as { email?: string }).email ?? null,
       event: data.event,
-      payload: data.payload ?? {},
+      payload: (data.payload ?? {}) as never,
     });
     return { ok: true };
   });
