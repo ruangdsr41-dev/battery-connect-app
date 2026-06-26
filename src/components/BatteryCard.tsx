@@ -1,8 +1,10 @@
-import { Star, Zap, ShieldCheck, ShieldAlert, Info } from "lucide-react";
+import { Star, Zap, ShieldCheck, ShieldAlert, Info, FileDown, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getBatteryImage } from "@/lib/battery-image";
+import { generateBatteryPDF, buildWhatsAppLink } from "@/lib/pdf";
+import { logEvent } from "@/lib/audit.functions";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
@@ -114,6 +116,34 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
             {app.obs || "Sem observações"}
           </span>
         </div>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            generateBatteryPDF(app);
+            logEvent({
+              data: { event: "pdf_export", payload: { codigo: app.codigoMoura } },
+            }).catch(() => {});
+          }}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium hover:border-primary/40"
+        >
+          <FileDown className="h-3.5 w-3.5" /> PDF
+        </button>
+        <a
+          href={buildWhatsAppLink(app)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() =>
+            logEvent({
+              data: { event: "whatsapp_share", payload: { codigo: app.codigoMoura } },
+            }).catch(() => {})
+          }
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-success/20 px-3 py-2 text-xs font-medium text-success hover:bg-success/30"
+        >
+          <Share2 className="h-3.5 w-3.5" /> WhatsApp
+        </a>
       </div>
     </article>
   );
