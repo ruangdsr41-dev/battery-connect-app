@@ -1,31 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Loader2, History, X, RefreshCw } from "lucide-react";
+import { Search, Loader2, History, X, RefreshCw, Car } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
 import { getAllApplications } from "@/lib/sheet.functions";
 import { getHistory, pushHistory, type HistoryEntry } from "@/lib/favorites";
+import { logEvent } from "@/lib/audit.functions";
+import { isPlaca, lookupPlaca, type PlacaInfo } from "@/lib/placa.functions";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Consultar bateria — Moura" },
-      {
-        name: "description",
-        content:
-          "Pesquise a bateria Moura ideal para qualquer carro, moto ou caminhão pela marca, modelo, ano ou código.",
-      },
-    ],
-  }),
+export const Route = createFileRoute("/_authenticated/")({
+  head: () => ({ meta: [{ title: "Consultar bateria — Moura" }] }),
   component: SearchPage,
 });
 
 function SearchPage() {
+  const { isMaster, nome } = Route.useRouteContext();
   const [q, setQ] = useState("");
+  const [placaInfo, setPlacaInfo] = useState<PlacaInfo | null>(null);
+  const [placaLoading, setPlacaLoading] = useState(false);
+  const [placaError, setPlacaError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -43,37 +39,73 @@ function SearchPage() {
     await getAllApplications({ data: { refresh: true } });
     await queryClient.invalidateQueries({ queryKey: ["sheet", "all"] });
     await refetch();
+    logEvent({ data: { event: "sheet_refresh" } }).catch(() => {});
   }
+
+  // Detecta placa e dispara lookup
+  useEffect(() => {
+    const t = q.trim();
+    if (!t) {
+      setPlacaInfo(null);
+      setPlacaError(null);
+      return;
+    }
+    if (!isPlaca(t)) {
+      setPlacaInfo(null);
+      setPlacaError(null);
+      return;
+    }
+    let canceled = false;
+    setPlacaLoading(true);
+    setPlacaError(null);
+    lookupPlaca({ data: { placa: t } })
+      .then((r) => {
+        if (canceled) return;
+        if ("error" in r) {
+          setPlacaError(r.error);
+          setPlacaInfo(null);
+        } else {
+          setPlacaInfo(r);
+          logEvent({
+            data: { event: "placa_lookup", payload: { placa: r.placa, modelo: r.modelo } },
+          }).catch(() => {});
+        }
+      })
+      .finally(() => !canceled && setPlacaLoading(false));
+    return () => {
+      canceled = true;
+    };
+  }, [q]);
 
   const rows = data?.rows ?? [];
 
+  const effectiveQuery = useMemo(() => {
+    if (placaInfo) {
+      return [placaInfo.marca, placaInfo.modelo, placaInfo.ano]
+        .filter(Boolean)
+        .join(" ");
+    }
+    return q;
+  }, [q, placaInfo]);
+
   const results = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = effectiveQuery.trim().toLowerCase();
     if (!needle) return [];
     const tokens = needle.split(/\s+/).filter(Boolean);
     const currentYear = new Date().getFullYear();
     return rows
       .filter((r) => {
-        const hay = [
-          r.marca,
-          r.modelo,
-          r.ano,
-          r.motorizacao,
-          r.codigoMoura,
-          r.codigoAlternativo,
-        ]
+        const hay = [r.marca, r.modelo, r.ano, r.motorizacao, r.codigoMoura, r.codigoAlternativo]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
 
-        // Parse year ranges from r.ano (ex: "2014-2019", "2014/2019", "2014 a 2019", "2014-")
         const anoStr = (r.ano ?? "").toString();
         const yearNums = (anoStr.match(/\d{4}/g) ?? []).map(Number);
         const ranges: Array<[number, number]> = [];
         if (yearNums.length >= 2) {
-          for (let i = 0; i + 1 < yearNums.length; i += 2) {
+          for (let i = 0; i + 1 < yearNums.length; i += 2)
             ranges.push([yearNums[i], yearNums[i + 1]]);
-          }
           if (yearNums.length % 2 === 1) {
             const last = yearNums[yearNums.length - 1];
             ranges.push([last, last]);
@@ -93,25 +125,36 @@ function SearchPage() {
         });
       })
       .slice(0, 200);
-  }, [q, rows]);
+  }, [effectiveQuery, rows]);
 
+  // Log busca com debounce
   useEffect(() => {
-    if (!q.trim()) return;
+    if (!q.trim() || placaLoading) return;
     const t = setTimeout(() => {
       pushHistory({ q: q.trim(), category: "all" });
       setHistory(getHistory());
+      logEvent({
+        data: {
+          event: results.length === 0 ? "search_empty" : "search",
+          payload: {
+            termo: effectiveQuery.trim() || q.trim(),
+            resultados: results.length,
+            placa: placaInfo?.placa,
+          },
+        },
+      }).catch(() => {});
     }, 1200);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, results.length, effectiveQuery, placaInfo, placaLoading]);
 
   return (
-    <AppShell>
+    <AppShell isMaster={isMaster} nome={nome}>
       <section className="rounded-2xl brand-gradient p-5 text-white">
         <h1 className="font-display text-2xl font-bold leading-tight">
           Encontre sua bateria Moura
         </h1>
         <p className="mt-1 text-sm text-white/75">
-          Catálogo oficial com mais de 3.150 aplicações.
+          Catálogo oficial — pesquise por marca, modelo, ano, código ou placa.
         </p>
       </section>
 
@@ -121,7 +164,7 @@ function SearchPage() {
           type="search"
           inputMode="search"
           autoComplete="off"
-          placeholder="Marca, modelo, ano ou código…"
+          placeholder="Marca, modelo, ano, código ou placa ABC1D23…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="h-14 w-full rounded-xl border border-border bg-card pl-11 pr-11 text-base outline-none ring-primary/40 transition-all focus:border-primary focus:ring-2"
@@ -137,6 +180,29 @@ function SearchPage() {
           </button>
         )}
       </div>
+
+      {placaLoading && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Consultando placa…
+        </div>
+      )}
+      {placaInfo && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs">
+          <Car className="h-4 w-4 text-primary" />
+          <span>
+            Placa <strong>{placaInfo.placa}</strong> →{" "}
+            <strong>
+              {[placaInfo.marca, placaInfo.modelo].filter(Boolean).join(" ")}
+            </strong>
+            {placaInfo.ano ? ` (${placaInfo.ano})` : ""}
+          </span>
+        </div>
+      )}
+      {placaError && (
+        <div className="mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {placaError}
+        </div>
+      )}
 
       {!q && history.length > 0 && (
         <div className="mt-4">
@@ -170,8 +236,7 @@ function SearchPage() {
               Não foi possível carregar o catálogo.
             </p>
             <p className="mt-1 text-muted-foreground">
-              {(error as Error)?.message ??
-                "Verifique sua conexão e tente novamente."}
+              {(error as Error)?.message ?? "Verifique sua conexão e tente novamente."}
             </p>
             <button
               onClick={() => refetch()}
@@ -190,28 +255,26 @@ function SearchPage() {
                   ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
                   : "Pronto para pesquisar"}
               </span>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={isFetching}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium hover:border-primary/40 disabled:opacity-50"
-                aria-label="Atualizar planilha"
-              >
-                <RefreshCw
-                  className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`}
-                />
-                Atualizar planilha
-              </button>
+              {isMaster && (
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isFetching}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium hover:border-primary/40 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
+                  Atualizar planilha
+                </button>
+              )}
             </div>
 
             {!q ? (
               <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-                Digite marca, modelo, ano ou código acima para consultar as
-                aplicações Moura.
+                Digite marca, modelo, ano, código ou <strong>placa</strong> para consultar.
               </div>
             ) : results.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-                Nenhuma aplicação encontrada para "{q}".
+                Nenhuma aplicação encontrada para "{effectiveQuery || q}".
               </div>
             ) : (
               <ul className="space-y-3">

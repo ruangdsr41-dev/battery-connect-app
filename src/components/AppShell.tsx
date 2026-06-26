@@ -1,9 +1,19 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Search, Star, Wifi, WifiOff } from "lucide-react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  isMaster = false,
+  nome,
+}: {
+  children: ReactNode;
+  isMaster?: boolean;
+  nome?: string | null;
+}) {
   const { location } = useRouterState();
+  const navigate = useNavigate();
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
@@ -19,6 +29,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const tab = location.pathname;
 
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="brand-gradient sticky top-0 z-30 border-b border-secondary/40">
@@ -32,25 +47,35 @@ export function AppShell({ children }: { children: ReactNode }) {
                 MOURA
               </div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-white/70">
-                Aplicações
+                {isMaster ? "Painel Master" : "Aplicações"}
               </div>
             </div>
           </Link>
-          <div
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-              online
-                ? "bg-success/20 text-success"
-                : "bg-warning/20 text-warning"
-            }`}
-            aria-live="polite"
-          >
-            {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-            {online ? "Online" : "Offline"}
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                online
+                  ? "bg-success/20 text-success"
+                  : "bg-warning/20 text-warning"
+              }`}
+            >
+              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {online ? "Online" : "Offline"}
+            </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              aria-label="Sair"
+              title={nome ? `Sair (${nome})` : "Sair"}
+              className="rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-4">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-4">
         {children}
       </main>
 
@@ -66,6 +91,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             icon={<Star />}
             label="Favoritos"
           />
+          {isMaster && (
+            <>
+              <TabLink
+                to="/admin/dashboard"
+                active={tab.startsWith("/admin/dashboard")}
+                icon={<BarChart3 />}
+                label="Dashboard"
+              />
+              <TabLink
+                to="/admin/usuarios"
+                active={tab.startsWith("/admin/usuarios")}
+                icon={<Users />}
+                label="Usuários"
+              />
+            </>
+          )}
         </div>
       </nav>
     </div>
