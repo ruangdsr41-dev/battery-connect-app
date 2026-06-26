@@ -51,6 +51,7 @@ function SearchPage() {
     const needle = q.trim().toLowerCase();
     if (!needle) return [];
     const tokens = needle.split(/\s+/).filter(Boolean);
+    const currentYear = new Date().getFullYear();
     return rows
       .filter((r) => {
         const hay = [
@@ -64,7 +65,32 @@ function SearchPage() {
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
-        return tokens.every((t) => hay.includes(t));
+
+        // Parse year ranges from r.ano (ex: "2014-2019", "2014/2019", "2014 a 2019", "2014-")
+        const anoStr = (r.ano ?? "").toString();
+        const yearNums = (anoStr.match(/\d{4}/g) ?? []).map(Number);
+        const ranges: Array<[number, number]> = [];
+        if (yearNums.length >= 2) {
+          for (let i = 0; i + 1 < yearNums.length; i += 2) {
+            ranges.push([yearNums[i], yearNums[i + 1]]);
+          }
+          if (yearNums.length % 2 === 1) {
+            const last = yearNums[yearNums.length - 1];
+            ranges.push([last, last]);
+          }
+        } else if (yearNums.length === 1) {
+          const onlyYear = yearNums[0];
+          const openEnded = /\d{4}\s*[-/a]\s*$/i.test(anoStr.trim());
+          ranges.push([onlyYear, openEnded ? currentYear : onlyYear]);
+        }
+
+        return tokens.every((t) => {
+          if (/^\d{4}$/.test(t)) {
+            const y = Number(t);
+            if (ranges.some(([a, b]) => y >= a && y <= b)) return true;
+          }
+          return hay.includes(t);
+        });
       })
       .slice(0, 200);
   }, [q, rows]);
