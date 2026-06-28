@@ -49,12 +49,43 @@
 :root {
   --radius: 0.75rem;
 
-  /* Brand */
+  /* Brand (constantes nos dois temas) */
   --brand-yellow: oklch(0.88 0.18 95);        /* #FFD500 */
   --brand-navy: oklch(0.33 0.13 260);          /* #003478 */
   --brand-navy-deep: oklch(0.21 0.06 255);     /* deep app bg */
 
-  /* App surfaces (dark by default — works as native app) */
+  /* === Tema claro (padrão quando .dark não está presente) === */
+  --background: oklch(0.985 0.005 250);
+  --foreground: oklch(0.18 0.03 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.03 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.03 255);
+
+  --primary: oklch(0.88 0.18 95);
+  --primary-foreground: oklch(0.21 0.06 255);
+
+  --secondary: oklch(0.33 0.13 260);
+  --secondary-foreground: oklch(0.985 0.005 250);
+
+  --muted: oklch(0.95 0.01 250);
+  --muted-foreground: oklch(0.45 0.03 256);
+
+  --accent: oklch(0.93 0.04 95);
+  --accent-foreground: oklch(0.21 0.06 255);
+
+  --destructive: oklch(0.62 0.21 25);
+  --destructive-foreground: oklch(0.985 0.005 250);
+
+  --success: oklch(0.55 0.18 150);
+  --warning: oklch(0.65 0.16 70);
+
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.93 0.01 250);
+  --ring: oklch(0.88 0.18 95);
+}
+
+.dark {
   --background: oklch(0.16 0.03 255);
   --foreground: oklch(0.98 0.005 250);
   --card: oklch(0.21 0.04 257);
@@ -62,10 +93,10 @@
   --popover: oklch(0.21 0.04 257);
   --popover-foreground: oklch(0.98 0.005 250);
 
-  --primary: oklch(0.88 0.18 95);              /* Moura yellow */
+  --primary: oklch(0.88 0.18 95);
   --primary-foreground: oklch(0.21 0.06 255);
 
-  --secondary: oklch(0.33 0.13 260);           /* Moura navy */
+  --secondary: oklch(0.33 0.13 260);
   --secondary-foreground: oklch(0.98 0.005 250);
 
   --muted: oklch(0.26 0.03 256);
@@ -85,11 +116,6 @@
   --ring: oklch(0.88 0.18 95);
 }
 
-.dark {
-  /* App is dark by default; keep same tokens. */
-  --background: oklch(0.16 0.03 255);
-  --foreground: oklch(0.98 0.005 250);
-}
 
 @layer base {
   * {

@@ -82,29 +82,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no",
       },
-      { title: "Moura Baterias — Consulta de Aplicações" },
+      { title: "BatPro Aplicações — Consulta inteligente de baterias" },
       {
         name: "description",
         content:
-          "Consulta inteligente de aplicações de baterias Moura para carros, motos e caminhões. Funciona offline como aplicativo.",
+          "BatPro Aplicações: consulta inteligente de baterias para carros, motos e caminhões. Funciona offline como aplicativo (PWA).",
       },
       { name: "theme-color", content: "#003478" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Moura" },
+      { name: "apple-mobile-web-app-title", content: "BatPro" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "format-detection", content: "telephone=no" },
-      { property: "og:title", content: "Moura Baterias — Consulta de Aplicações" },
+      { property: "og:title", content: "BatPro Aplicações — Consulta inteligente de baterias" },
       {
         property: "og:description",
         content:
-          "Encontre a bateria Moura certa para qualquer carro, moto ou caminhão.",
+          "Descubra a bateria ideal para o seu veículo. Consulta inteligente, offline e como PWA.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "Moura Baterias — Consulta de Aplicações" },
-      { name: "description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
-      { property: "og:description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
-      { name: "twitter:description", content: "Moura App Install is a Progressive Web App for installing and accessing application information directly on devices." },
+      { name: "twitter:title", content: "BatPro Aplicações" },
+      { name: "twitter:description", content: "Descubra a bateria ideal para o seu veículo." },
+
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39280ee1-e4e3-4a3c-8895-9f2aae5874e2/id-preview-976996f2--1be47dd2-4701-4144-bdb3-4b8ed06317fc.lovable.app-1782268230915.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39280ee1-e4e3-4a3c-8895-9f2aae5874e2/id-preview-976996f2--1be47dd2-4701-4144-bdb3-4b8ed06317fc.lovable.app-1782268230915.png" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -129,9 +128,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('batpro:theme');if(t!=='light'){document.documentElement.classList.add('dark');}else{document.documentElement.classList.add('light');}}catch(e){document.documentElement.classList.add('dark');}})();`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -140,6 +144,7 @@ function RootShell({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
