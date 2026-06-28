@@ -1,19 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Loader2, History, X, RefreshCw, Car } from "lucide-react";
+import Fuse from "fuse.js";
+import { Search, Loader2, History, X, RefreshCw, Car, AlertTriangle, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
-import { getAllApplications } from "@/lib/sheet.functions";
+import { getAllApplications, type BatteryApplication } from "@/lib/sheet.functions";
 import { getHistory, pushHistory, type HistoryEntry } from "@/lib/favorites";
 import { logEvent } from "@/lib/audit.functions";
 import { isPlaca, lookupPlaca, type PlacaInfo } from "@/lib/placa.functions";
 
 export const Route = createFileRoute("/_authenticated/")({
-  head: () => ({ meta: [{ title: "Consultar bateria — Moura" }] }),
+  head: () => ({ meta: [{ title: "Consultar bateria — BatPro" }] }),
   component: SearchPage,
 });
+
+const CACHE_KEY = "batpro:catalog-cache:v1";
+
+type CachedCatalog = { rows: BatteryApplication[]; fetchedAt: string };
+
+function loadLocalCache(): CachedCatalog | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CachedCatalog;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalCache(c: CachedCatalog) {
+  try {
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch {
+    // quota / private mode — ignore
+  }
+}
 
 function SearchPage() {
   const { isMaster, nome } = Route.useRouteContext();
@@ -22,10 +46,13 @@ function SearchPage() {
   const [placaLoading, setPlacaLoading] = useState(false);
   const [placaError, setPlacaError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [localCache, setLocalCache] = useState<CachedCatalog | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     setHistory(getHistory());
+    setLocalCache(loadLocalCache());
   }, []);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -33,7 +60,17 @@ function SearchPage() {
     queryFn: () => getAllApplications({ data: {} }),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
+    retry: 1,
   });
+
+  // Persistir cache local quando carregar com sucesso
+  useEffect(() => {
+    if (data?.rows?.length) {
+      const snap = { rows: data.rows, fetchedAt: data.fetchedAt };
+      saveLocalCache(snap);
+      setLocalCache(snap);
+    }
+  }, [data]);
 
   async function handleRefresh() {
     await getAllApplications({ data: { refresh: true } });
@@ -42,15 +79,10 @@ function SearchPage() {
     logEvent({ data: { event: "sheet_refresh" } }).catch(() => {});
   }
 
-  // Detecta placa e dispara lookup
+  // Detecta placa
   useEffect(() => {
     const t = q.trim();
-    if (!t) {
-      setPlacaInfo(null);
-      setPlacaError(null);
-      return;
-    }
-    if (!isPlaca(t)) {
+    if (!t || !isPlaca(t)) {
       setPlacaInfo(null);
       setPlacaError(null);
       return;
@@ -77,17 +109,19 @@ function SearchPage() {
     };
   }, [q]);
 
-  const rows = data?.rows ?? [];
+  // Fonte de dados (live ou fallback local)
+  const usingFallback = isError && !!localCache;
+  const rows: BatteryApplication[] = data?.rows ?? (usingFallback ? localCache!.rows : []);
+  const fallbackFetchedAt = localCache?.fetchedAt;
 
   const effectiveQuery = useMemo(() => {
     if (placaInfo) {
-      return [placaInfo.marca, placaInfo.modelo, placaInfo.ano]
-        .filter(Boolean)
-        .join(" ");
+      return [placaInfo.marca, placaInfo.modelo, placaInfo.ano].filter(Boolean).join(" ");
     }
     return q;
   }, [q, placaInfo]);
 
+  // Resultados estritos (mantém regra de ano)
   const results = useMemo(() => {
     const needle = effectiveQuery.trim().toLowerCase();
     if (!needle) return [];
@@ -127,6 +161,44 @@ function SearchPage() {
       .slice(0, 200);
   }, [effectiveQuery, rows]);
 
+  // Índice fuzzy sobre veículos únicos (marca + modelo)
+  const vehicles = useMemo(() => {
+    const map = new Map<string, { marca: string; modelo: string; label: string }>();
+    for (const r of rows) {
+      if (!r.marca || !r.modelo) continue;
+      const label = `${r.marca} ${r.modelo}`;
+      const key = label.toLowerCase();
+      if (!map.has(key)) map.set(key, { marca: r.marca, modelo: r.modelo, label });
+    }
+    return Array.from(map.values());
+  }, [rows]);
+
+  const fuse = useMemo(
+    () =>
+      new Fuse(vehicles, {
+        keys: ["label", "modelo", "marca"],
+        threshold: 0.4,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+      }),
+    [vehicles],
+  );
+
+  // Sugestões (autocomplete) — apenas para texto, não para placa
+  const suggestions = useMemo(() => {
+    const term = q.trim();
+    if (term.length < 2 || isPlaca(term)) return [];
+    return fuse.search(term, { limit: 6 }).map((r) => r.item);
+  }, [q, fuse]);
+
+  // "Você quis dizer" — quando não há resultados estritos
+  const didYouMean = useMemo(() => {
+    if (results.length > 0) return [];
+    const term = effectiveQuery.trim();
+    if (term.length < 2) return [];
+    return fuse.search(term, { limit: 3 }).map((r) => r.item);
+  }, [results.length, effectiveQuery, fuse]);
+
   // Log busca com debounce
   useEffect(() => {
     if (!q.trim() || placaLoading) return;
@@ -151,10 +223,10 @@ function SearchPage() {
     <AppShell isMaster={isMaster} nome={nome}>
       <section className="rounded-2xl brand-gradient p-5 text-white">
         <h1 className="font-display text-2xl font-bold leading-tight">
-          Encontre sua bateria Moura
+          Descubra a bateria ideal para o seu veículo.
         </h1>
         <p className="mt-1 text-sm text-white/75">
-          Catálogo oficial — pesquise por marca, modelo, ano, código ou placa.
+          Catálogo profissional — pesquise por marca, modelo, ano, código ou placa.
         </p>
       </section>
 
@@ -166,7 +238,12 @@ function SearchPage() {
           autoComplete="off"
           placeholder="Marca, modelo, ano, código ou placa ABC1D23…"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setShowSuggest(true);
+          }}
+          onFocus={() => setShowSuggest(true)}
+          onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
           className="h-14 w-full rounded-xl border border-border bg-card pl-11 pr-11 text-base outline-none ring-primary/40 transition-all focus:border-primary focus:ring-2"
         />
         {q && (
@@ -179,7 +256,41 @@ function SearchPage() {
             <X className="h-4 w-4" />
           </button>
         )}
+
+        {showSuggest && suggestions.length > 0 && (
+          <ul className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-popover shadow-elevated">
+            {suggestions.map((s) => (
+              <li key={s.label}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setQ(s.label);
+                    setShowSuggest(false);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent/40"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-medium">{s.marca}</span>
+                  <span className="text-muted-foreground">{s.modelo}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+
+      {usingFallback && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Não foi possível atualizar a planilha agora. Exibindo último cache válido
+            {fallbackFetchedAt
+              ? ` de ${new Date(fallbackFetchedAt).toLocaleString("pt-BR")}.`
+              : "."}
+          </span>
+        </div>
+      )}
 
       {placaLoading && (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -191,9 +302,7 @@ function SearchPage() {
           <Car className="h-4 w-4 text-primary" />
           <span>
             Placa <strong>{placaInfo.placa}</strong> →{" "}
-            <strong>
-              {[placaInfo.marca, placaInfo.modelo].filter(Boolean).join(" ")}
-            </strong>
+            <strong>{[placaInfo.marca, placaInfo.modelo].filter(Boolean).join(" ")}</strong>
             {placaInfo.ano ? ` (${placaInfo.ano})` : ""}
           </span>
         </div>
@@ -230,7 +339,7 @@ function SearchPage() {
           </div>
         )}
 
-        {isError && (
+        {isError && !localCache && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
             <p className="font-medium text-destructive">
               Não foi possível carregar o catálogo.
@@ -247,7 +356,7 @@ function SearchPage() {
           </div>
         )}
 
-        {!isLoading && !isError && (
+        {!isLoading && (rows.length > 0) && (
           <>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>
@@ -273,8 +382,30 @@ function SearchPage() {
                 Digite marca, modelo, ano, código ou <strong>placa</strong> para consultar.
               </div>
             ) : results.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-                Nenhuma aplicação encontrada para "{effectiveQuery || q}".
+              <div className="rounded-xl border border-border bg-card p-6 text-center text-sm">
+                <p className="text-muted-foreground">
+                  Nenhuma aplicação encontrada para "{effectiveQuery || q}".
+                </p>
+                {didYouMean.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Você quis dizer:
+                    </p>
+                    <div className="mt-2 flex flex-wrap justify-center gap-2">
+                      {didYouMean.map((d) => (
+                        <button
+                          key={d.label}
+                          type="button"
+                          onClick={() => setQ(d.label)}
+                          className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
+                        >
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <ul className="space-y-3">
