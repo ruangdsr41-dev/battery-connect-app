@@ -1,7 +1,9 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users } from "lucide-react";
+import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users, Moon, Sun } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "@/hooks/use-theme";
+
 
 export function AppShell({
   children,
@@ -14,7 +16,9 @@ export function AppShell({
 }) {
   const { location } = useRouterState();
   const navigate = useNavigate();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [online, setOnline] = useState(true);
+
 
   useEffect(() => {
     const upd = () => setOnline(navigator.onLine);
@@ -40,11 +44,11 @@ export function AppShell({
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-display text-xl font-black">
-              M
+              B
             </div>
             <div className="leading-tight">
               <div className="font-display text-base font-bold tracking-wide text-white">
-                MOURA
+                BATPRO
               </div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-white/70">
                 {isMaster ? "Painel Master" : "Aplicações"}
@@ -64,6 +68,15 @@ export function AppShell({
             </div>
             <button
               type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Modo claro" : "Modo escuro"}
+              title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+              className="rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
               onClick={handleSignOut}
               aria-label="Sair"
               title={nome ? `Sair (${nome})` : "Sair"}
@@ -74,6 +87,7 @@ export function AppShell({
           </div>
         </div>
       </header>
+
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-4">
         {children}
