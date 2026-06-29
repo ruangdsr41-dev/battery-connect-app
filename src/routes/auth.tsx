@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logEvent } from "@/lib/audit.functions";
+import batproLogo from "@/assets/batpro-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     disabled: typeof s.disabled === "string" ? s.disabled : undefined,
     signup: typeof s.signup === "string" ? s.signup : undefined,
   }),
-  head: () => ({ meta: [{ title: "Entrar — Moura" }] }),
+  head: () => ({ meta: [{ title: "Entrar — BatPro" }] }),
   component: AuthPage,
 });
 
@@ -75,12 +76,14 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="brand-gradient p-6 text-white">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground font-display text-2xl font-black">
-            M
-          </div>
-          <div>
-            <div className="font-display text-lg font-bold">MOURA</div>
+        <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+          <img
+            src={batproLogo.url}
+            alt="BatPro"
+            className="h-28 w-28 rounded-2xl object-contain drop-shadow-xl"
+          />
+          <div className="text-center">
+            <div className="font-display text-2xl font-bold tracking-wide">BATPRO</div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-white/70">
               Consulta de Aplicações
             </div>
