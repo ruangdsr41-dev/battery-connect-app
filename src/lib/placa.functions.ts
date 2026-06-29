@@ -20,10 +20,10 @@ export const lookupPlaca = createServerFn({ method: "GET" })
     const placa = data.placa.replace(/\s|-/g, "").toUpperCase();
     if (!PLACA_REGEX.test(placa)) return { error: "Placa inválida" };
 
-    // BrasilAPI / FIPE não retorna por placa; tentamos endpoint público gratuito.
-    // Sem chave: consulta apibrasil/wdapi (gratuito limitado).
+    const token = process.env.WDAPI_TOKEN;
+    if (!token) return { error: "Token de consulta não configurado." };
     try {
-      const res = await fetch(`https://wdapi2.com.br/consulta/${placa}/free`, {
+      const res = await fetch(`https://wdapi2.com.br/consulta/${placa}/${token}`, {
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
@@ -36,6 +36,7 @@ export const lookupPlaca = createServerFn({ method: "GET" })
           combustivel: (j.combustivel as string) || (j.COMBUSTIVEL as string),
         };
       }
+      return { error: `Falha na consulta (${res.status}).` };
     } catch {
       /* ignore */
     }

@@ -18,11 +18,11 @@ export default defineConfig({
           "icons/apple-touch-icon.png",
         ],
         manifest: {
-          name: "Moura Baterias — Consulta de Aplicações",
-          short_name: "Moura",
+          name: "BatPro — Consulta de Aplicações",
+          short_name: "BatPro",
           description:
-            "Consulta inteligente de aplicações de baterias Moura para carros, motos e caminhões.",
-          theme_color: "#003478",
+            "BatPro: consulta inteligente de aplicações de baterias para carros, motos e caminhões.",
+          theme_color: "#0a1628",
           background_color: "#0a1628",
           display: "standalone",
           orientation: "portrait",
@@ -30,24 +30,9 @@ export default defineConfig({
           start_url: "/",
           lang: "pt-BR",
           icons: [
-            {
-              src: "/icons/icon-192.png",
-              sizes: "192x192",
-              type: "image/png",
-              purpose: "any",
-            },
-            {
-              src: "/icons/icon-512.png",
-              sizes: "512x512",
-              type: "image/png",
-              purpose: "any",
-            },
-            {
-              src: "/icons/icon-512.png",
-              sizes: "512x512",
-              type: "image/png",
-              purpose: "maskable",
-            },
+            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           ],
         },
         workbox: {
@@ -59,7 +44,7 @@ export default defineConfig({
               urlPattern: ({ request }) => request.mode === "navigate",
               handler: "NetworkFirst",
               options: {
-                cacheName: "moura-pages",
+                cacheName: "batpro-pages",
                 networkTimeoutSeconds: 4,
                 expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
               },
@@ -68,7 +53,7 @@ export default defineConfig({
               urlPattern: /\/_serverFn\//,
               handler: "NetworkFirst",
               options: {
-                cacheName: "moura-api",
+                cacheName: "batpro-api",
                 networkTimeoutSeconds: 6,
                 expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 3 },
                 cacheableResponse: { statuses: [0, 200] },
@@ -78,7 +63,7 @@ export default defineConfig({
               urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
               handler: "CacheFirst",
               options: {
-                cacheName: "moura-fonts",
+                cacheName: "batpro-fonts",
                 expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
                 cacheableResponse: { statuses: [0, 200] },
               },
