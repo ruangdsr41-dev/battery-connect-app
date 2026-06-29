@@ -3,6 +3,7 @@ import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users, Moon, Sun } from
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
+import batproLogo from "@/assets/batpro-logo.png.asset.json";
 
 
 export function AppShell({
@@ -43,9 +44,11 @@ export function AppShell({
       <header className="brand-gradient sticky top-0 z-30 border-b border-secondary/40">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-display text-xl font-black">
-              B
-            </div>
+            <img
+              src={batproLogo.url}
+              alt="BatPro"
+              className="h-10 w-10 rounded-lg object-contain"
+            />
             <div className="leading-tight">
               <div className="font-display text-base font-bold tracking-wide text-white">
                 BATPRO
