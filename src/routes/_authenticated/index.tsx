@@ -79,12 +79,17 @@ function SearchPage() {
     logEvent({ data: { event: "sheet_refresh" } }).catch(() => {});
   }
 
-  // Detecta placa
+  // Detecta placa e AUTO-PREENCHE o campo com "MARCA MODELO ANO"
   useEffect(() => {
     const t = q.trim();
     if (!t || !isPlaca(t)) {
-      setPlacaInfo(null);
-      setPlacaError(null);
+      // Se o usuário apagou/alterou a placa, limpa o estado relacionado
+      if (!isPlaca(t)) {
+        setPlacaError(null);
+        if (placaInfo && !t.includes(placaInfo.modelo ?? "###")) {
+          setPlacaInfo(null);
+        }
+      }
       return;
     }
     let canceled = false;
@@ -98,6 +103,9 @@ function SearchPage() {
           setPlacaInfo(null);
         } else {
           setPlacaInfo(r);
+          // Auto-preenche o input com marca + modelo + ano
+          const filled = [r.marca, r.modelo, r.ano].filter(Boolean).join(" ").trim();
+          if (filled) setQ(filled);
           logEvent({
             data: { event: "placa_lookup", payload: { placa: r.placa, modelo: r.modelo } },
           }).catch(() => {});
@@ -107,6 +115,7 @@ function SearchPage() {
     return () => {
       canceled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   // Fonte de dados (live ou fallback local)
@@ -114,12 +123,9 @@ function SearchPage() {
   const rows: BatteryApplication[] = data?.rows ?? (usingFallback ? localCache!.rows : []);
   const fallbackFetchedAt = localCache?.fetchedAt;
 
-  const effectiveQuery = useMemo(() => {
-    if (placaInfo) {
-      return [placaInfo.marca, placaInfo.modelo, placaInfo.ano].filter(Boolean).join(" ");
-    }
-    return q;
-  }, [q, placaInfo]);
+  // Após o auto-preenchimento, o próprio q já contém marca+modelo+ano.
+  const effectiveQuery = q;
+
 
   // Resultados estritos (mantém regra de ano)
   const results = useMemo(() => {
