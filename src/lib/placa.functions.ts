@@ -20,25 +20,37 @@ export const lookupPlaca = createServerFn({ method: "GET" })
     const placa = data.placa.replace(/\s|-/g, "").toUpperCase();
     if (!PLACA_REGEX.test(placa)) return { error: "Placa inválida" };
 
-    const token = process.env.WDAPI_TOKEN;
+    const token = process.env.INVERTEXTO_TOKEN;
     if (!token) return { error: "Token de consulta não configurado." };
+
     try {
-      const res = await fetch(`https://wdapi2.com.br/consulta/${placa}/${token}`, {
-        headers: { Accept: "application/json" },
-      });
+      const res = await fetch(
+        `https://api.invertexto.com/v1/placa/${placa}?token=${token}`,
+        { headers: { Accept: "application/json" } },
+      );
       if (res.ok) {
         const j = (await res.json()) as Record<string, unknown>;
-        return {
-          placa,
-          marca: (j.MARCA as string) || (j.marca as string),
-          modelo: (j.MODELO as string) || (j.modelo as string),
-          ano: (j.ano as string) || (j.anoModelo as string) || (j.AnoModelo as string),
-          combustivel: (j.combustivel as string) || (j.COMBUSTIVEL as string),
-        };
+        // Invertexto retorna: marca, modelo, ano, anoModelo, cor, combustivel, etc.
+        const marca = (j.marca as string) ?? undefined;
+        const modelo = (j.modelo as string) ?? undefined;
+        const ano =
+          (j.ano as string | number)?.toString() ??
+          (j.anoModelo as string | number)?.toString() ??
+          undefined;
+        const combustivel = (j.combustivel as string) ?? undefined;
+        if (!marca && !modelo) {
+          return { error: "Placa não encontrada na base." };
+        }
+        return { placa, marca, modelo, ano, combustivel };
+      }
+      if (res.status === 401 || res.status === 403) {
+        return { error: "Token de consulta inválido ou sem créditos." };
+      }
+      if (res.status === 404) {
+        return { error: "Placa não encontrada." };
       }
       return { error: `Falha na consulta (${res.status}).` };
     } catch {
-      /* ignore */
+      return { error: "Não foi possível consultar a placa agora." };
     }
-    return { error: "Não foi possível consultar a placa agora." };
   });
