@@ -396,7 +396,7 @@ function SearchPage() {
           </div>
         )}
 
-        {!isLoading && (rows.length > 0) && (
+        {!isLoading && (rows.length > 0 || catalog.length > 0) && (
           <>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>
