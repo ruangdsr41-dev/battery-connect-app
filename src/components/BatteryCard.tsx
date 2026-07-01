@@ -1,13 +1,15 @@
-import { Star, Zap, ShieldCheck, ShieldAlert, Info, FileDown, Share2 } from "lucide-react";
+import { Star, Zap, ShieldCheck, ShieldAlert, Info, FileDown, Share2, Layers } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getBatteryImage } from "@/lib/battery-image";
 import { generateBatteryPDF, buildWhatsAppLink } from "@/lib/pdf";
 import { logEvent } from "@/lib/audit.functions";
+import { CatalogModal } from "@/components/CatalogModal";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => {
     setFav(isFavorite(app));
@@ -145,6 +147,23 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
           <Share2 className="h-3.5 w-3.5" /> WhatsApp
         </a>
       </div>
+
+      {app.categoria && (
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowCatalog(true)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Layers className="h-3 w-3" />
+            Ver Catálogo ({app.categoria})
+          </button>
+        </div>
+      )}
+
+      {showCatalog && app.categoria && (
+        <CatalogModal categoria={app.categoria} onClose={() => setShowCatalog(false)} />
+      )}
     </article>
   );
 }

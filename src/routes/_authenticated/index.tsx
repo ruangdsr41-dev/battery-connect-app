@@ -6,7 +6,8 @@ import { Search, Loader2, History, X, RefreshCw, Car, AlertTriangle, Sparkles } 
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
-import { getAllApplications, type BatteryApplication } from "@/lib/sheet.functions";
+import { getAllApplications, getCatalog, type BatteryApplication, type CatalogProduct } from "@/lib/sheet.functions";
+import { ProductCard } from "@/components/CatalogModal";
 import { getHistory, pushHistory, type HistoryEntry } from "@/lib/favorites";
 import { logEvent } from "@/lib/audit.functions";
 import { isPlaca, lookupPlaca, type PlacaInfo } from "@/lib/placa.functions";
@@ -62,6 +63,15 @@ function SearchPage() {
     gcTime: 1000 * 60 * 60 * 24,
     retry: 1,
   });
+
+  const { data: catalogData } = useQuery({
+    queryKey: ["catalog"],
+    queryFn: () => getCatalog({ data: {} }),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60 * 24,
+    retry: 1,
+  });
+  const catalog: CatalogProduct[] = catalogData?.rows ?? [];
 
   // Persistir cache local quando carregar com sucesso
   useEffect(() => {
@@ -166,6 +176,30 @@ function SearchPage() {
       })
       .slice(0, 200);
   }, [effectiveQuery, rows]);
+
+  // Busca no Catálogo (produtos avulsos) — Caso 2/3 do BATPRO V2
+  const productResults = useMemo(() => {
+    const needle = effectiveQuery.trim().toLowerCase();
+    if (!needle) return [];
+    const tokens = needle.split(/\s+/).filter(Boolean);
+    return catalog
+      .filter((p) => {
+        const hay = [
+          p.marca,
+          p.modelo,
+          p.descricao,
+          p.categoria,
+          p.tecnologia,
+          p.amperagem,
+          p.cca,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return tokens.every((t) => hay.includes(t));
+      })
+      .slice(0, 60);
+  }, [effectiveQuery, catalog]);
 
   // Índice fuzzy sobre veículos únicos (marca + modelo)
   const vehicles = useMemo(() => {
@@ -362,12 +396,14 @@ function SearchPage() {
           </div>
         )}
 
-        {!isLoading && (rows.length > 0) && (
+        {!isLoading && (rows.length > 0 || catalog.length > 0) && (
           <>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {q
-                  ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
+                  ? `${results.length} aplicaç${results.length === 1 ? "ão" : "ões"}${
+                      productResults.length ? ` · ${productResults.length} produto${productResults.length === 1 ? "" : "s"}` : ""
+                    }`
                   : "Pronto para pesquisar"}
               </span>
               {isMaster && (
@@ -387,10 +423,10 @@ function SearchPage() {
               <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
                 Digite marca, modelo, ano, código ou <strong>placa</strong> para consultar.
               </div>
-            ) : results.length === 0 ? (
+            ) : results.length === 0 && productResults.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center text-sm">
                 <p className="text-muted-foreground">
-                  Nenhuma aplicação encontrada para "{effectiveQuery || q}".
+                  Nenhum resultado encontrado para "{effectiveQuery || q}".
                 </p>
                 {didYouMean.length > 0 && (
                   <div className="mt-4">
@@ -414,13 +450,31 @@ function SearchPage() {
                 )}
               </div>
             ) : (
-              <ul className="space-y-3">
-                {results.map((r, i) => (
-                  <li key={`${r.codigoMoura}-${r.marca}-${r.modelo}-${i}`}>
-                    <BatteryCard app={r} />
-                  </li>
-                ))}
-              </ul>
+              <>
+                {results.length > 0 && (
+                  <ul className="space-y-3">
+                    {results.map((r, i) => (
+                      <li key={`${r.codigoMoura}-${r.marca}-${r.modelo}-${i}`}>
+                        <BatteryCard app={r} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {productResults.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Produtos do Catálogo
+                    </h2>
+                    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {productResults.map((p, i) => (
+                        <li key={`${p.marca}-${p.modelo}-${i}`}>
+                          <ProductCard p={p} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
