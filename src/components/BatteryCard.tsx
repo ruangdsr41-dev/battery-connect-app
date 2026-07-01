@@ -147,6 +147,23 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
           <Share2 className="h-3.5 w-3.5" /> WhatsApp
         </a>
       </div>
+
+      {app.categoria && (
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowCatalog(true)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Layers className="h-3 w-3" />
+            Ver Catálogo ({app.categoria})
+          </button>
+        </div>
+      )}
+
+      {showCatalog && app.categoria && (
+        <CatalogModal categoria={app.categoria} onClose={() => setShowCatalog(false)} />
+      )}
     </article>
   );
 }
