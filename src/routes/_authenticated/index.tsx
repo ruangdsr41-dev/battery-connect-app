@@ -177,6 +177,30 @@ function SearchPage() {
       .slice(0, 200);
   }, [effectiveQuery, rows]);
 
+  // Busca no Catálogo (produtos avulsos) — Caso 2/3 do BATPRO V2
+  const productResults = useMemo(() => {
+    const needle = effectiveQuery.trim().toLowerCase();
+    if (!needle) return [];
+    const tokens = needle.split(/\s+/).filter(Boolean);
+    return catalog
+      .filter((p) => {
+        const hay = [
+          p.marca,
+          p.modelo,
+          p.descricao,
+          p.categoria,
+          p.tecnologia,
+          p.amperagem,
+          p.cca,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return tokens.every((t) => hay.includes(t));
+      })
+      .slice(0, 60);
+  }, [effectiveQuery, catalog]);
+
   // Índice fuzzy sobre veículos únicos (marca + modelo)
   const vehicles = useMemo(() => {
     const map = new Map<string, { marca: string; modelo: string; label: string }>();
