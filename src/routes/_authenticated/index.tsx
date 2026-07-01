@@ -6,7 +6,8 @@ import { Search, Loader2, History, X, RefreshCw, Car, AlertTriangle, Sparkles } 
 
 import { AppShell } from "@/components/AppShell";
 import { BatteryCard } from "@/components/BatteryCard";
-import { getAllApplications, type BatteryApplication } from "@/lib/sheet.functions";
+import { getAllApplications, getCatalog, type BatteryApplication, type CatalogProduct } from "@/lib/sheet.functions";
+import { ProductCard } from "@/components/CatalogModal";
 import { getHistory, pushHistory, type HistoryEntry } from "@/lib/favorites";
 import { logEvent } from "@/lib/audit.functions";
 import { isPlaca, lookupPlaca, type PlacaInfo } from "@/lib/placa.functions";
