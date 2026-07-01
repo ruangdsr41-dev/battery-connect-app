@@ -1,13 +1,15 @@
-import { Star, Zap, ShieldCheck, ShieldAlert, Info, FileDown, Share2 } from "lucide-react";
+import { Star, Zap, ShieldCheck, ShieldAlert, Info, FileDown, Share2, Layers } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getBatteryImage } from "@/lib/battery-image";
 import { generateBatteryPDF, buildWhatsAppLink } from "@/lib/pdf";
 import { logEvent } from "@/lib/audit.functions";
+import { CatalogModal } from "@/components/CatalogModal";
 
 export function BatteryCard({ app }: { app: BatteryApplication }) {
   const [fav, setFav] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => {
     setFav(isFavorite(app));
