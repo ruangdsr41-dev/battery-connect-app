@@ -401,7 +401,9 @@ function SearchPage() {
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {q
-                  ? `${results.length} resultado${results.length === 1 ? "" : "s"}`
+                  ? `${results.length} aplicaç${results.length === 1 ? "ão" : "ões"}${
+                      productResults.length ? ` · ${productResults.length} produto${productResults.length === 1 ? "" : "s"}` : ""
+                    }`
                   : "Pronto para pesquisar"}
               </span>
               {isMaster && (
