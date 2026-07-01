@@ -423,10 +423,10 @@ function SearchPage() {
               <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
                 Digite marca, modelo, ano, código ou <strong>placa</strong> para consultar.
               </div>
-            ) : results.length === 0 ? (
+            ) : results.length === 0 && productResults.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center text-sm">
                 <p className="text-muted-foreground">
-                  Nenhuma aplicação encontrada para "{effectiveQuery || q}".
+                  Nenhum resultado encontrado para "{effectiveQuery || q}".
                 </p>
                 {didYouMean.length > 0 && (
                   <div className="mt-4">
@@ -450,13 +450,31 @@ function SearchPage() {
                 )}
               </div>
             ) : (
-              <ul className="space-y-3">
-                {results.map((r, i) => (
-                  <li key={`${r.codigoMoura}-${r.marca}-${r.modelo}-${i}`}>
-                    <BatteryCard app={r} />
-                  </li>
-                ))}
-              </ul>
+              <>
+                {results.length > 0 && (
+                  <ul className="space-y-3">
+                    {results.map((r, i) => (
+                      <li key={`${r.codigoMoura}-${r.marca}-${r.modelo}-${i}`}>
+                        <BatteryCard app={r} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {productResults.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Produtos do Catálogo
+                    </h2>
+                    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {productResults.map((p, i) => (
+                        <li key={`${p.marca}-${p.modelo}-${i}`}>
+                          <ProductCard p={p} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
