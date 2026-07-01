@@ -64,6 +64,15 @@ function SearchPage() {
     retry: 1,
   });
 
+  const { data: catalogData } = useQuery({
+    queryKey: ["catalog"],
+    queryFn: () => getCatalog({ data: {} }),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60 * 24,
+    retry: 1,
+  });
+  const catalog: CatalogProduct[] = catalogData?.rows ?? [];
+
   // Persistir cache local quando carregar com sucesso
   useEffect(() => {
     if (data?.rows?.length) {
