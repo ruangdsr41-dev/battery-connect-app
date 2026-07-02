@@ -194,6 +194,7 @@ function SearchPage() {
     return catalog
       .filter((p) => {
         const hay = [
+          p.sku,
           p.marca,
           p.modelo,
           p.descricao,
