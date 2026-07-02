@@ -228,18 +228,30 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
       <div className="flex items-start gap-3">
         <img
           src={img}
-          alt={`${p.marca} ${p.modelo}`}
+          alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/icons/icon-192.png";
+          }}
           className="h-16 w-16 shrink-0 rounded-md bg-muted/40 object-contain p-1"
         />
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-            {p.marca}
+          <div className="flex items-center gap-1.5">
+            <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+              {p.sku || "—"}
+            </span>
+            {p.marca && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                {p.marca}
+              </span>
+            )}
           </div>
-          <h3 className="truncate font-display text-base font-semibold leading-tight">
-            {p.modelo}
-          </h3>
-          {p.descricao && (
+          {(p.modelo || p.descricao) && (
+            <h3 className="mt-0.5 truncate font-display text-base font-semibold leading-tight">
+              {p.modelo || p.descricao}
+            </h3>
+          )}
+          {p.descricao && p.modelo && (
             <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.descricao}</p>
           )}
           <div className="mt-1 flex flex-wrap gap-1">
@@ -254,6 +266,7 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
           </div>
         </div>
       </div>
+
 
       <dl className="mt-3 grid grid-cols-4 gap-1.5 text-center text-[11px]">
         <Mini label="Ah" v={p.amperagem} />
