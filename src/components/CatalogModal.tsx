@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 
-type SortKey = "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
+type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
 
 function parseNumber(v?: string): number {
