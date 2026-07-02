@@ -38,13 +38,15 @@ export function CatalogModal({
     gcTime: 1000 * 60 * 60 * 24,
   });
 
-  const products: CatalogProduct[] = useMemo(
-    () =>
-      (data?.rows ?? []).filter(
-        (p) => p.categoria.trim().toLowerCase() === categoria.trim().toLowerCase(),
-      ),
-    [data, categoria],
-  );
+  const products: CatalogProduct[] = useMemo(() => {
+    const target = normalizeText(categoria);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[BATPRO] Relacionando via Categoria: [${target}].`);
+    }
+    return (data?.rows ?? []).filter(
+      (p) => (p.categoriaNorm ?? normalizeText(p.categoria)) === target,
+    );
+  }, [data, categoria]);
 
   const marcas = useMemo(
     () => Array.from(new Set(products.map((p) => p.marca).filter(Boolean))).sort(),
