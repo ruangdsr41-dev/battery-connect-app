@@ -37,14 +37,16 @@ export interface BatteryApplication {
   validado?: string;
   obs?: string;
   imagemUrl?: string;
-  categoria?: string; // chave de relacionamento com o Catálogo
+  categoria?: string;
 }
 
 export interface CatalogProduct {
+  sku: string;
   marca: string;
-  modelo: string;
+  modelo?: string;
   descricao?: string;
   categoria: string;
+  categoriaNorm?: string;
   tecnologia?: string;
   amperagem?: string;
   cca?: string;
@@ -54,6 +56,7 @@ export interface CatalogProduct {
   comprimento?: string;
   largura?: string;
   altura?: string;
+  polaridade?: string;
   precoVenda?: string;
   precoFrotista?: string;
   custo?: string;
@@ -61,6 +64,18 @@ export interface CatalogProduct {
   disponivel?: string;
   imagemUrl?: string;
   obs?: string;
+}
+
+// ---------- Utilitários ----------
+export function normalizeText(v?: string | null): string {
+  if (v === null || v === undefined) return "";
+  return String(v)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 // ---------- Cache em memória ----------
@@ -76,7 +91,6 @@ function pick(row: Record<string, string>, ...keys: string[]): string {
       return String(v).trim();
     }
   }
-  // caso-insensível como fallback
   const lower = Object.fromEntries(
     Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), v]),
   );
@@ -153,35 +167,44 @@ async function fetchCatalog(refresh = false): Promise<CatalogProduct[]> {
   try {
     data = await fetchCsv(url);
   } catch {
-    // Se a aba ainda não existir, devolve vazio silenciosamente
     catalogCache = { ts: Date.now(), data: [] };
     return [];
   }
 
   const rows = data
-    .map<CatalogProduct>((row) => ({
-      marca: pick(row, "Marca"),
-      modelo: pick(row, "Modelo"),
-      descricao: pick(row, "Descrição", "Descricao"),
-      categoria: pick(row, "Categoria", "CATEGORIA"),
-      tecnologia: pick(row, "Tecnologia"),
-      amperagem: pick(row, "Ah", "Amperagem", "Amperagem (Ah)"),
-      cca: pick(row, "CCA"),
-      tensao: pick(row, "Tensão", "Tensao", "Voltagem", "Voltagem (V)", "V"),
-      garantia: pick(row, "Garantia", "Garantia (meses)"),
-      peso: pick(row, "Peso", "Peso (kg)"),
-      comprimento: pick(row, "Comprimento", "Comprimento (mm)"),
-      largura: pick(row, "Largura", "Largura (mm)"),
-      altura: pick(row, "Altura", "Altura (mm)"),
-      precoVenda: pick(row, "Preço Venda", "Preco Venda", "PreçoVenda"),
-      precoFrotista: pick(row, "Preço Frotista", "Preco Frotista", "PreçoFrotista"),
-      custo: pick(row, "Custo"),
-      markup: pick(row, "Markup"),
-      disponivel: pick(row, "Disponível", "Disponivel"),
-      imagemUrl: pick(row, "Imagem", "IMAGEM", "Link Imagem", "URL Imagem", "Foto"),
-      obs: pick(row, "Observações", "Observacoes", "OBS", "Obs"),
-    }))
-    .filter((r) => r.marca && r.modelo && r.categoria);
+    .map<CatalogProduct>((row) => {
+      const categoria = pick(row, "Categoria", "CATEGORIA");
+      return {
+        sku: pick(row, "SKU", "Código", "Codigo"),
+        marca: pick(row, "Marca"),
+        modelo: pick(row, "Modelo"),
+        descricao: pick(row, "Descrição", "Descricao"),
+        categoria,
+        categoriaNorm: normalizeText(categoria),
+        tecnologia: pick(row, "Tecnologia"),
+        amperagem: pick(row, "Ah", "Amperagem", "Amperagem (Ah)"),
+        cca: pick(row, "CCA"),
+        tensao: pick(row, "Tensão Nominal (V)", "Tensão", "Tensao", "Voltagem", "Voltagem (V)", "V"),
+        garantia: pick(row, "Garantia", "Garantia (meses)"),
+        peso: pick(row, "Peso (Kg)", "Peso (kg)", "Peso"),
+        comprimento: pick(row, "Comp. (mm)", "Comprimento (mm)", "Comprimento"),
+        largura: pick(row, "Larg. (mm)", "Largura (mm)", "Largura"),
+        altura: pick(row, "Alt. (mm)", "Altura (mm)", "Altura"),
+        polaridade: pick(row, "Polaridade"),
+        precoVenda: pick(row, "Preço", "Preço Venda", "Preco Venda", "PreçoVenda"),
+        precoFrotista: pick(row, "Frotista", "Preço Frotista", "Preco Frotista"),
+        custo: pick(row, "Custo (R$)", "Custo"),
+        markup: pick(row, "Markup"),
+        disponivel: pick(row, "Disponível", "Disponivel"),
+        imagemUrl: pick(row, "Imagem", "IMAGEM", "Link Imagem", "URL Imagem", "Foto"),
+        obs: pick(row, "Observações", "Observacoes", "OBS", "Obs"),
+      };
+    })
+    .filter((r) => r.sku && r.categoria);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[BATPRO] Carregados ${rows.length} produtos na aba Catálogo.`);
+  }
 
   catalogCache = { ts: Date.now(), data: rows };
   return rows;
@@ -217,7 +240,6 @@ export const getAllApplications = createServerFn({ method: "GET" })
     return { rows: results.flat(), fetchedAt: new Date().toISOString() };
   });
 
-// Catálogo — autenticado; oculta custo/markup no backend para não-master.
 export const getCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>

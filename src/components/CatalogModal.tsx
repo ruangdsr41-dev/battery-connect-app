@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
-import { getCatalog, type CatalogProduct } from "@/lib/sheet.functions";
+import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 
-type SortKey = "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
+type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
 
 function parseNumber(v?: string): number {
@@ -38,13 +38,15 @@ export function CatalogModal({
     gcTime: 1000 * 60 * 60 * 24,
   });
 
-  const products: CatalogProduct[] = useMemo(
-    () =>
-      (data?.rows ?? []).filter(
-        (p) => p.categoria.trim().toLowerCase() === categoria.trim().toLowerCase(),
-      ),
-    [data, categoria],
-  );
+  const products: CatalogProduct[] = useMemo(() => {
+    const target = normalizeText(categoria);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[BATPRO] Relacionando via Categoria: [${target}].`);
+    }
+    return (data?.rows ?? []).filter(
+      (p) => (p.categoriaNorm ?? normalizeText(p.categoria)) === target,
+    );
+  }, [data, categoria]);
 
   const marcas = useMemo(
     () => Array.from(new Set(products.map((p) => p.marca).filter(Boolean))).sort(),
@@ -127,6 +129,7 @@ export function CatalogModal({
               onChange={(e) => setSortKey(e.target.value as SortKey)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs"
             >
+              <option value="sku">SKU</option>
               <option value="marca">Marca</option>
               <option value="precoVenda">Preço</option>
               <option value="amperagem">Ah</option>
@@ -164,7 +167,7 @@ export function CatalogModal({
           )}
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {filtered.map((p, i) => (
-              <li key={`${p.marca}-${p.modelo}-${i}`}>
+              <li key={`${p.sku}-${i}`}>
                 <ProductCard p={p} />
               </li>
             ))}
@@ -226,18 +229,30 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
       <div className="flex items-start gap-3">
         <img
           src={img}
-          alt={`${p.marca} ${p.modelo}`}
+          alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/icons/icon-192.png";
+          }}
           className="h-16 w-16 shrink-0 rounded-md bg-muted/40 object-contain p-1"
         />
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-            {p.marca}
+          <div className="flex items-center gap-1.5">
+            <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+              {p.sku || "—"}
+            </span>
+            {p.marca && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                {p.marca}
+              </span>
+            )}
           </div>
-          <h3 className="truncate font-display text-base font-semibold leading-tight">
-            {p.modelo}
-          </h3>
-          {p.descricao && (
+          {(p.modelo || p.descricao) && (
+            <h3 className="mt-0.5 truncate font-display text-base font-semibold leading-tight">
+              {p.modelo || p.descricao}
+            </h3>
+          )}
+          {p.descricao && p.modelo && (
             <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.descricao}</p>
           )}
           <div className="mt-1 flex flex-wrap gap-1">
@@ -252,6 +267,7 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
           </div>
         </div>
       </div>
+
 
       <dl className="mt-3 grid grid-cols-4 gap-1.5 text-center text-[11px]">
         <Mini label="Ah" v={p.amperagem} />
