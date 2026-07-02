@@ -83,9 +83,18 @@ function SearchPage() {
   }, [data]);
 
   async function handleRefresh() {
-    await getAllApplications({ data: { refresh: true } });
-    await queryClient.invalidateQueries({ queryKey: ["sheet", "all"] });
+    await Promise.all([
+      getAllApplications({ data: { refresh: true } }),
+      getCatalog({ data: { refresh: true } }),
+    ]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["sheet", "all"] }),
+      queryClient.invalidateQueries({ queryKey: ["catalog"] }),
+    ]);
     await refetch();
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[BATPRO] Cache atualizado em ${new Date().toISOString()}.`);
+    }
     logEvent({ data: { event: "sheet_refresh" } }).catch(() => {});
   }
 
