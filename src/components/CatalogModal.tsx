@@ -129,6 +129,7 @@ export function CatalogModal({
               onChange={(e) => setSortKey(e.target.value as SortKey)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs"
             >
+              <option value="sku">SKU</option>
               <option value="marca">Marca</option>
               <option value="precoVenda">Preço</option>
               <option value="amperagem">Ah</option>
