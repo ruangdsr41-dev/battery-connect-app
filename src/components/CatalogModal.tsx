@@ -167,7 +167,7 @@ export function CatalogModal({
           )}
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {filtered.map((p, i) => (
-              <li key={`${p.marca}-${p.modelo}-${i}`}>
+              <li key={`${p.sku}-${i}`}>
                 <ProductCard p={p} />
               </li>
             ))}
