@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
-import { getCatalog, type CatalogProduct } from "@/lib/sheet.functions";
+import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 
 type SortKey = "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
