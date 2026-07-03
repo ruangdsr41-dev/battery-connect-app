@@ -103,6 +103,12 @@ export function AppShell({
         <div className="mx-auto flex max-w-3xl">
           <TabLink to="/" active={tab === "/"} icon={<Search />} label="Consultar" />
           <TabLink
+            to="/catalogo"
+            active={tab.startsWith("/catalogo")}
+            icon={<BookOpen />}
+            label="Catálogo"
+          />
+          <TabLink
             to="/favoritos"
             active={tab.startsWith("/favoritos")}
             icon={<Star />}
