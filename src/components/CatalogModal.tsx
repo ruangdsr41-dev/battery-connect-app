@@ -33,8 +33,13 @@ export function CatalogModal({
   const [tecnologia, setTecnologia] = useState<string>("");
   const [disp, setDisp] = useState<"" | "SIM" | "NAO">("");
 
+  const ctx = useRouteContext({ from: "/_authenticated", strict: false }) as
+    | { isMaster?: boolean }
+    | undefined;
+  const isMasterCtx = !!ctx?.isMaster;
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["catalog"],
+    queryKey: ["catalog", isMasterCtx ? "master" : "padrao"],
     queryFn: () => getCatalog({ data: {} }),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
