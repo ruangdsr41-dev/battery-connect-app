@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
+import { BatteryImage } from "@/components/BatteryImage";
 
 type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
