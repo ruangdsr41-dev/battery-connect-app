@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 import { isFavorite, toggleFavorite } from "@/lib/favorites";
 import { getBatteryImage } from "@/lib/battery-image";
+import { BatteryImage } from "@/components/BatteryImage";
 import { generateBatteryPDF, buildWhatsAppLink } from "@/lib/pdf";
 import { logEvent } from "@/lib/audit.functions";
 import { CatalogModal } from "@/components/CatalogModal";
