@@ -61,10 +61,10 @@ export function BatteryCard({ app }: { app: BatteryApplication }) {
       </div>
 
       <div className="mt-3 flex items-center gap-3 rounded-lg bg-muted/40 p-2">
-        <img
-          src={img.url}
+        <BatteryImage
+          src={app.imagemUrl}
+          fallback={img.url}
           alt={img.label}
-          loading="lazy"
           className="h-16 w-16 shrink-0 object-contain"
         />
         <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
