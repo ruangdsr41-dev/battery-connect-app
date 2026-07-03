@@ -209,12 +209,8 @@ function SelectMini({
   );
 }
 
-export function ProductCard({ p }: { p: CatalogProduct }) {
+export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMaster?: boolean }) {
   const indisponivel = (p.disponivel || "").trim().toUpperCase() !== "SIM" && !!p.disponivel;
-  const img =
-    p.imagemUrl && /^https?:\/\//i.test(p.imagemUrl)
-      ? p.imagemUrl
-      : "/icons/icon-192.png";
 
   return (
     <article
@@ -228,13 +224,9 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
         </span>
       )}
       <div className="flex items-start gap-3">
-        <img
-          src={img}
+        <BatteryImage
+          src={p.imagemUrl}
           alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
-          loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = "/icons/icon-192.png";
-          }}
           className="h-16 w-16 shrink-0 rounded-md bg-muted/40 object-contain p-1"
         />
         <div className="min-w-0 flex-1">
@@ -289,10 +281,12 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
         <PriceBox label="Preço venda" value={formatBRL(p.precoVenda)} tone="primary" />
         <PriceBox label="Preço frotista" value={formatBRL(p.precoFrotista)} />
-        {p.custo !== undefined && (
+        {isMaster && p.custo !== undefined && (
           <PriceBox label="Custo" value={formatBRL(p.custo)} tone="muted" />
         )}
-        {p.markup !== undefined && <PriceBox label="Markup" value={p.markup || "—"} tone="muted" />}
+        {isMaster && p.markup !== undefined && (
+          <PriceBox label="Markup" value={p.markup || "—"} tone="muted" />
+        )}
       </div>
 
       {p.obs && (
