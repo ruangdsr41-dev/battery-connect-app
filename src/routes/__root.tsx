@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
+import batproLogo from "../assets/batpro-logo.png.asset.json";
 
 function NotFoundComponent() {
   return (
@@ -111,13 +112,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
-      { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" },
-      {
-        rel: "apple-touch-icon",
-        sizes: "180x180",
-        href: "/icons/apple-touch-icon.png",
-      },
+      { rel: "icon", type: "image/png", href: batproLogo.url },
+      { rel: "shortcut icon", type: "image/png", href: batproLogo.url },
+      { rel: "apple-touch-icon", href: batproLogo.url },
     ],
   }),
   shellComponent: RootShell,

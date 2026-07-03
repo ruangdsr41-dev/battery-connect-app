@@ -211,7 +211,13 @@ async function fetchCatalog(refresh = false): Promise<CatalogProduct[]> {
 }
 
 function stripPrivateFields(rows: CatalogProduct[]): CatalogProduct[] {
-  return rows.map(({ custo: _c, markup: _m, ...rest }) => rest);
+  // Remove COMPLETAMENTE os campos sensíveis do payload — nunca chegam ao cliente PADRÃO.
+  return rows.map((r) => {
+    const clone = { ...r } as CatalogProduct & { custo?: string; markup?: string };
+    delete clone.custo;
+    delete clone.markup;
+    return clone;
+  });
 }
 
 // ---------- Server Functions ----------

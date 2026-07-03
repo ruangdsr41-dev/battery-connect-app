@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
+import { BatteryImage } from "@/components/BatteryImage";
 
 type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
@@ -31,8 +33,13 @@ export function CatalogModal({
   const [tecnologia, setTecnologia] = useState<string>("");
   const [disp, setDisp] = useState<"" | "SIM" | "NAO">("");
 
+  const ctx = (useRouteContext as unknown as (opts: { strict: false }) => { isMaster?: boolean })({
+    strict: false,
+  });
+  const isMasterCtx = !!ctx?.isMaster;
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["catalog"],
+    queryKey: ["catalog", isMasterCtx ? "master" : "padrao"],
     queryFn: () => getCatalog({ data: {} }),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
@@ -168,7 +175,7 @@ export function CatalogModal({
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {filtered.map((p, i) => (
               <li key={`${p.sku}-${i}`}>
-                <ProductCard p={p} />
+                <ProductCard p={p} isMaster={!!data?.isMaster} />
               </li>
             ))}
           </ul>
@@ -208,12 +215,8 @@ function SelectMini({
   );
 }
 
-export function ProductCard({ p }: { p: CatalogProduct }) {
+export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMaster?: boolean }) {
   const indisponivel = (p.disponivel || "").trim().toUpperCase() !== "SIM" && !!p.disponivel;
-  const img =
-    p.imagemUrl && /^https?:\/\//i.test(p.imagemUrl)
-      ? p.imagemUrl
-      : "/icons/icon-192.png";
 
   return (
     <article
@@ -227,13 +230,9 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
         </span>
       )}
       <div className="flex items-start gap-3">
-        <img
-          src={img}
+        <BatteryImage
+          src={p.imagemUrl}
           alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
-          loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = "/icons/icon-192.png";
-          }}
           className="h-16 w-16 shrink-0 rounded-md bg-muted/40 object-contain p-1"
         />
         <div className="min-w-0 flex-1">
@@ -288,10 +287,12 @@ export function ProductCard({ p }: { p: CatalogProduct }) {
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
         <PriceBox label="Preço venda" value={formatBRL(p.precoVenda)} tone="primary" />
         <PriceBox label="Preço frotista" value={formatBRL(p.precoFrotista)} />
-        {p.custo !== undefined && (
+        {isMaster && p.custo !== undefined && (
           <PriceBox label="Custo" value={formatBRL(p.custo)} tone="muted" />
         )}
-        {p.markup !== undefined && <PriceBox label="Markup" value={p.markup || "—"} tone="muted" />}
+        {isMaster && p.markup !== undefined && (
+          <PriceBox label="Markup" value={p.markup || "—"} tone="muted" />
+        )}
       </div>
 
       {p.obs && (
