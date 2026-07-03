@@ -33,7 +33,7 @@ export function CatalogModal({
   const [tecnologia, setTecnologia] = useState<string>("");
   const [disp, setDisp] = useState<"" | "SIM" | "NAO">("");
 
-  const ctx = useRouteContext({ from: "/_authenticated", strict: false }) as
+  const ctx = useRouteContext({ from: "__root__", strict: false }) as unknown as
     | { isMaster?: boolean }
     | undefined;
   const isMasterCtx = !!ctx?.isMaster;
