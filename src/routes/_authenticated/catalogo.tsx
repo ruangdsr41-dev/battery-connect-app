@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Loader2, Search, Filter, X } from "lucide-react";
+import { Loader2, Search, Filter, X, ArrowUpDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProductCard } from "@/components/CatalogModal";
@@ -12,6 +12,15 @@ export const Route = createFileRoute("/_authenticated/catalogo")({
   component: CatalogoPage,
 });
 
+type SortKey = "marca" | "categoria" | "sku" | "precoVenda" | "amperagem";
+type SortDir = "asc" | "desc";
+
+function parseNumber(v?: string) {
+  if (!v) return NaN;
+  const n = Number(String(v).replace(/[^\d,.\-]/g, "").replace(",", "."));
+  return isFinite(n) ? n : NaN;
+}
+
 function CatalogoPage() {
   const { isMaster, nome } = Route.useRouteContext();
   const [q, setQ] = useState("");
@@ -19,9 +28,13 @@ function CatalogoPage() {
   const [categoria, setCategoria] = useState("");
   const [tecnologia, setTecnologia] = useState("");
   const [ah, setAh] = useState("");
+  const [disp, setDisp] = useState<"" | "SIM" | "NAO">("");
+  const [sortKey, setSortKey] = useState<SortKey>("marca");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["catalog"],
+    // Chave inclui isMaster para invalidar cache ao trocar de usuário
+    queryKey: ["catalog", isMaster ? "master" : "padrao"],
     queryFn: () => getCatalog({ data: {} }),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 60 * 24,
@@ -29,41 +42,70 @@ function CatalogoPage() {
 
   const products: CatalogProduct[] = data?.rows ?? [];
 
-  const marcas = useMemo(
-    () => Array.from(new Set(products.map((p) => p.marca).filter(Boolean))).sort(),
-    [products],
-  );
-  const categorias = useMemo(
-    () => Array.from(new Set(products.map((p) => p.categoria).filter(Boolean))).sort(),
-    [products],
-  );
-  const tecnologias = useMemo(
-    () =>
-      Array.from(new Set(products.map((p) => p.tecnologia).filter(Boolean))).sort() as string[],
-    [products],
-  );
+  const uniq = (fn: (p: CatalogProduct) => string | undefined) =>
+    Array.from(new Set(products.map(fn).filter(Boolean) as string[])).sort();
+
+  const marcas = useMemo(() => uniq((p) => p.marca), [products]);
+  const categorias = useMemo(() => uniq((p) => p.categoria), [products]);
+  const tecnologias = useMemo(() => uniq((p) => p.tecnologia), [products]);
   const ahs = useMemo(
-    () => Array.from(new Set(products.map((p) => p.amperagem).filter(Boolean))).sort() as string[],
+    () =>
+      Array.from(new Set(products.map((p) => p.amperagem).filter(Boolean) as string[])).sort(
+        (a, b) => parseNumber(a) - parseNumber(b),
+      ),
     [products],
   );
 
   const filtered = useMemo(() => {
     const nq = normalizeText(q);
     const tokens = nq.split(/\s+/).filter(Boolean);
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       if (marca && p.marca !== marca) return false;
       if (categoria && p.categoria !== categoria) return false;
       if (tecnologia && p.tecnologia !== tecnologia) return false;
       if (ah && p.amperagem !== ah) return false;
+      if (disp) {
+        const d = (p.disponivel || "").trim().toUpperCase();
+        if (disp === "SIM" && d !== "SIM") return false;
+        if (disp === "NAO" && d === "SIM") return false;
+      }
       if (!tokens.length) return true;
       const hay = normalizeText(
-        [p.sku, p.marca, p.modelo, p.descricao, p.categoria, p.tecnologia, p.amperagem, p.cca]
+        [
+          p.sku,
+          p.marca,
+          p.modelo,
+          p.descricao,
+          p.categoria,
+          p.tecnologia,
+          p.amperagem,
+          p.cca,
+          p.obs,
+        ]
           .filter(Boolean)
           .join(" "),
       );
       return tokens.every((t) => hay.includes(t));
     });
-  }, [products, q, marca, categoria, tecnologia, ah]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const av = (a[sortKey] as string) ?? "";
+      const bv = (b[sortKey] as string) ?? "";
+      const an = parseNumber(av);
+      const bn = parseNumber(bv);
+      if (isFinite(an) && isFinite(bn)) return (an - bn) * dir;
+      return String(av).localeCompare(String(bv), "pt-BR") * dir;
+    });
+  }, [products, q, marca, categoria, tecnologia, ah, disp, sortKey, sortDir]);
+
+  const clearFilters = () => {
+    setMarca("");
+    setCategoria("");
+    setTecnologia("");
+    setAh("");
+    setDisp("");
+  };
 
   return (
     <AppShell isMaster={isMaster} nome={nome}>
@@ -78,7 +120,7 @@ function CatalogoPage() {
         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
-          placeholder="SKU, marca, modelo, categoria…"
+          placeholder="SKU, marca, modelo, categoria, descrição…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-11 outline-none focus:border-primary focus:ring-2 focus:ring-primary/40"
@@ -111,7 +153,44 @@ function CatalogoPage() {
           options={tecnologias}
         />
         <FilterSelect label="Ah" value={ah} onChange={setAh} options={ahs} />
-        <span className="ml-auto text-muted-foreground">{filtered.length} produtos</span>
+        <FilterSelect
+          label="Disponibilidade"
+          value={disp}
+          onChange={(v) => setDisp(v as "" | "SIM" | "NAO")}
+          options={["SIM", "NAO"]}
+        />
+        {(marca || categoria || tecnologia || ah || disp) && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-md border border-border bg-muted px-2 py-1 text-[11px] hover:bg-muted/70"
+          >
+            Limpar filtros
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+          >
+            <option value="marca">Marca</option>
+            <option value="categoria">Categoria</option>
+            <option value="sku">SKU</option>
+            <option value="precoVenda">Preço</option>
+            <option value="amperagem">Ah</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+            aria-label="Inverter ordenação"
+          >
+            {sortDir === "asc" ? "A-Z ↑" : "Z-A ↓"}
+          </button>
+          <span className="text-muted-foreground">{filtered.length} produtos</span>
+        </div>
       </div>
 
       <div className="mt-5">
@@ -129,7 +208,7 @@ function CatalogoPage() {
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((p, i) => (
               <li key={`${p.sku}-${i}`}>
-                <ProductCard p={p} />
+                <ProductCard p={p} isMaster={!!data?.isMaster} />
               </li>
             ))}
           </ul>
