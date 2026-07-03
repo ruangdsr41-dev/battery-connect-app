@@ -17,10 +17,8 @@ export function getBatteryImage(app: BatteryApplication): {
   url: string;
   label: string;
 } {
-  // Prefer image URL from the spreadsheet column (per-code override)
-  if (app.imagemUrl && /^https?:\/\//i.test(app.imagemUrl)) {
-    return { url: app.imagemUrl, label: app.tecnologia || "Bateria" };
-  }
+  // Retorna SEMPRE o fallback por categoria/tecnologia.
+  // O <BatteryImage /> tenta primeiro app.imagemUrl (planilha) e cai aqui em caso de erro/ausência.
   const t = norm(app.tecnologia);
   const cat = app.category;
 
