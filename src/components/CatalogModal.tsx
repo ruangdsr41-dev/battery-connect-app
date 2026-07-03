@@ -33,9 +33,9 @@ export function CatalogModal({
   const [tecnologia, setTecnologia] = useState<string>("");
   const [disp, setDisp] = useState<"" | "SIM" | "NAO">("");
 
-  const ctx = useRouteContext({ from: "__root__", strict: false }) as unknown as
-    | { isMaster?: boolean }
-    | undefined;
+  const ctx = (useRouteContext as unknown as (opts: { strict: false }) => { isMaster?: boolean })({
+    strict: false,
+  });
   const isMasterCtx = !!ctx?.isMaster;
 
   const { data, isLoading, isError } = useQuery({
