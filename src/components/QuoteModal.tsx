@@ -39,7 +39,6 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener(QUOTE_EVENT, sync);
   }, []);
 
-  const store = STORES[storeId];
   const total = items.reduce((acc, it) => {
     const p = parseNumber(it.precoVenda);
     return acc + (isFinite(p) ? p * it.qty : 0);
