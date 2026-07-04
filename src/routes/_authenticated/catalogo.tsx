@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Loader2, Search, Filter, X, ArrowUpDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -56,8 +56,9 @@ function CatalogoPage() {
     [products],
   );
 
+  const deferredQ = useDeferredValue(q);
   const filtered = useMemo(() => {
-    const nq = normalizeText(q);
+    const nq = normalizeText(deferredQ);
     const tokens = nq.split(/\s+/).filter(Boolean);
     const list = products.filter((p) => {
       if (marca && p.marca !== marca) return false;
@@ -97,7 +98,7 @@ function CatalogoPage() {
       if (isFinite(an) && isFinite(bn)) return (an - bn) * dir;
       return String(av).localeCompare(String(bv), "pt-BR") * dir;
     });
-  }, [products, q, marca, categoria, tecnologia, ah, disp, sortKey, sortDir]);
+  }, [products, deferredQ, marca, categoria, tecnologia, ah, disp, sortKey, sortDir]);
 
   const clearFilters = () => {
     setMarca("");
