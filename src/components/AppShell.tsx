@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
+import { QuoteBar } from "@/components/QuoteBar";
 
 
 export function AppShell({
@@ -95,6 +96,8 @@ export function AppShell({
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-4">
         {children}
       </main>
+
+      <QuoteBar />
 
       <nav
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur"
