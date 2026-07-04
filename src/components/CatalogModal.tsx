@@ -218,19 +218,43 @@ function SelectMini({
 
 export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMaster?: boolean }) {
   const indisponivel = (p.disponivel || "").trim().toUpperCase() !== "SIM" && !!p.disponivel;
+  const [selected, setSelected] = useState<boolean>(() => isInQuote(p.sku));
+
+  useEffect(() => {
+    const sync = () => setSelected(isInQuote(p.sku));
+    window.addEventListener(QUOTE_EVENT, sync);
+    return () => window.removeEventListener(QUOTE_EVENT, sync);
+  }, [p.sku]);
 
   return (
     <article
-      className={`relative flex h-full flex-col rounded-xl border border-border bg-card p-3 transition ${
+      className={`relative flex h-full flex-col rounded-xl border bg-card p-3 transition ${
         indisponivel ? "opacity-60" : ""
-      }`}
+      } ${selected ? "border-primary ring-2 ring-primary/40" : "border-border"}`}
     >
+      <button
+        type="button"
+        onClick={() => {
+          toggleQuote(p);
+          setSelected((s) => !s);
+        }}
+        disabled={!p.sku}
+        aria-pressed={selected}
+        title={selected ? "Remover do orçamento" : "Adicionar ao orçamento"}
+        className={`absolute left-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-md border text-[10px] font-bold transition ${
+          selected
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border bg-card text-transparent hover:border-primary/60"
+        }`}
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
       {indisponivel && (
         <span className="absolute right-2 top-2 rounded-full bg-destructive/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-destructive">
           Indisponível
         </span>
       )}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 pl-7">
         <BatteryImage
           src={p.imagemUrl}
           alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
