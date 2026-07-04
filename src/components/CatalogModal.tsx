@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
-import { X, ArrowUpDown, Filter, PackageX, Loader2 } from "lucide-react";
+import { X, ArrowUpDown, Filter, PackageX, Loader2, Check } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 import { BatteryImage } from "@/components/BatteryImage";
+import { isInQuote, toggleQuote, QUOTE_EVENT } from "@/lib/quote-store";
 
 type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
 type SortDir = "asc" | "desc";
