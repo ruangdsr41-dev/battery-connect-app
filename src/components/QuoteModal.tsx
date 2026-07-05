@@ -1,34 +1,61 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, forwardRef } from "react";
 import { X, FileDown, Image as ImageIcon, Trash2, Loader2 } from "lucide-react";
-import html2canvas from "html2canvas";
+import { toPng, toJpeg } from "html-to-image";
 import jsPDF from "jspdf";
-import batproLogo from "@/assets/batpro-logo.png.asset.json";
 
 import {
   listQuote,
   removeFromQuote,
   setQty,
+  setPriceOverride,
   clearQuote,
   QUOTE_EVENT,
   type QuoteItem,
 } from "@/lib/quote-store";
 import { STORE_LIST, STORES, type StoreId } from "@/lib/stores";
+import batproLogo from "@/assets/batpro-logo.png.asset.json";
+import { parseBRL, formatBRL } from "@/lib/price";
 
-function parseNumber(v?: string): number {
-  if (!v) return NaN;
-  const n = Number(String(v).replace(/[^\d,.\-]/g, "").replace(",", "."));
-  return isFinite(n) ? n : NaN;
+function effectivePrice(it: QuoteItem): number {
+  if (typeof it.precoOverride === "number" && isFinite(it.precoOverride)) return it.precoOverride;
+  return parseBRL(it.precoVenda);
 }
-function formatBRL(v?: string | number): string {
-  const n = typeof v === "number" ? v : parseNumber(v);
-  if (!isFinite(n)) return typeof v === "string" ? v : "—";
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+async function waitForImages(root: HTMLElement) {
+  const imgs = Array.from(root.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete && img.naturalWidth > 0
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            const done = () => resolve();
+            img.addEventListener("load", done, { once: true });
+            img.addEventListener("error", done, { once: true });
+            // fallback timeout
+            setTimeout(done, 4000);
+          }),
+    ),
+  );
+}
+
+function today(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+function slugStore(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 export function QuoteModal({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<QuoteItem[]>(() => listQuote());
   const [storeId, setStoreId] = useState<StoreId>("disk");
   const [cliente, setCliente] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [obs, setObs] = useState("");
   const [busy, setBusy] = useState<"pdf" | "png" | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -40,31 +67,45 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   const store = STORES[storeId];
-  const total = items.reduce((acc, it) => {
-    const p = parseNumber(it.precoVenda);
-    return acc + (isFinite(p) ? p * it.qty : 0);
-  }, 0);
+  const total = useMemo(
+    () =>
+      items.reduce((acc, it) => {
+        const p = effectivePrice(it);
+        return acc + (isFinite(p) ? p * it.qty : 0);
+      }, 0),
+    [items],
+  );
 
-  async function renderCanvas(): Promise<HTMLCanvasElement | null> {
+  async function snapshot(pixelRatio = 2): Promise<HTMLCanvasElement | null> {
     if (!printRef.current) return null;
-    return html2canvas(printRef.current, {
+    await waitForImages(printRef.current);
+    // toPng usa foreignObject SVG e suporta CSS moderno (incluindo oklch).
+    const dataUrl = await toPng(printRef.current, {
+      pixelRatio,
       backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      logging: false,
+      cacheBust: true,
+      skipFonts: false,
     });
+    return await dataUrlToCanvas(dataUrl);
   }
 
   async function exportPNG() {
     setBusy("png");
     try {
-      const canvas = await renderCanvas();
-      if (!canvas) return;
-      const url = canvas.toDataURL("image/png");
+      if (!printRef.current) return;
+      await waitForImages(printRef.current);
+      const dataUrl = await toPng(printRef.current, {
+        pixelRatio: 3,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+      });
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `orcamento-${store.id}-${Date.now()}.png`;
+      a.href = dataUrl;
+      a.download = `Orcamento_${slugStore(store.nome)}_${today()}.png`;
       a.click();
+    } catch (err) {
+      console.error("[BATPRO] PNG export falhou:", err);
+      alert("Não foi possível gerar o PNG.");
     } finally {
       setBusy(null);
     }
@@ -73,39 +114,56 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   async function exportPDF() {
     setBusy("pdf");
     try {
-      const canvas = await renderCanvas();
+      const canvas = await snapshot(2);
       if (!canvas) return;
-      const img = canvas.toDataURL("image/jpeg", 0.92);
+
       const pdf = new jsPDF({ unit: "pt", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      const imgW = pageW - 40;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      let y = 20;
-      let remaining = imgH;
-      // Se couber em uma página, adiciona direto; senão pagina.
-      if (imgH <= pageH - 40) {
-        pdf.addImage(img, "JPEG", 20, y, imgW, imgH);
+      const margin = 24;
+      const contentW = pageW - margin * 2;
+      const contentH = pageH - margin * 2;
+
+      // Escala do canvas -> PDF (pontos)
+      const scale = contentW / canvas.width;
+      const totalHeightPt = canvas.height * scale;
+
+      if (totalHeightPt <= contentH) {
+        const jpeg = canvas.toDataURL("image/jpeg", 0.94);
+        pdf.addImage(jpeg, "JPEG", margin, margin, contentW, totalHeightPt);
       } else {
-        // Estratégia simples: cortar a imagem em canvas temporários por página.
-        const pxPerPage = ((pageH - 40) * canvas.width) / imgW;
+        // Paginação por fatias em pixels do canvas original.
+        const pxPerPage = contentH / scale;
         let sy = 0;
-        while (remaining > 0) {
+        let pageIdx = 0;
+        while (sy < canvas.height) {
           const sliceH = Math.min(pxPerPage, canvas.height - sy);
           const tmp = document.createElement("canvas");
           tmp.width = canvas.width;
           tmp.height = sliceH;
-          const ctx = tmp.getContext("2d")!;
+          const ctx = tmp.getContext("2d");
+          if (!ctx) break;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, tmp.width, tmp.height);
           ctx.drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-          const slice = tmp.toDataURL("image/jpeg", 0.92);
-          const sH = (sliceH * imgW) / canvas.width;
-          pdf.addImage(slice, "JPEG", 20, 20, imgW, sH);
+          const jpeg = tmp.toDataURL("image/jpeg", 0.94);
+          if (pageIdx > 0) pdf.addPage();
+          // Cabeçalho compacto repetido nas páginas > 1
+          let top = margin;
+          if (pageIdx > 0) {
+            drawRepeatHeader(pdf, store, cliente, margin, top, contentW);
+            top += 26;
+          }
+          pdf.addImage(jpeg, "JPEG", margin, top, contentW, sliceH * scale);
           sy += sliceH;
-          remaining -= sH;
-          if (remaining > 0) pdf.addPage();
+          pageIdx += 1;
         }
       }
-      pdf.save(`orcamento-${store.id}-${Date.now()}.pdf`);
+
+      pdf.save(`Orcamento_${slugStore(store.nome)}_${today()}.pdf`);
+    } catch (err) {
+      console.error("[BATPRO] PDF export falhou:", err);
+      alert("Não foi possível gerar o PDF.");
     } finally {
       setBusy(null);
     }
@@ -124,7 +182,8 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
           <div>
             <h2 className="font-display text-lg font-bold">Orçamento Profissional</h2>
             <p className="text-xs text-muted-foreground">
-              {items.length} {items.length === 1 ? "item selecionado" : "itens selecionados"}
+              {items.length} {items.length === 1 ? "item selecionado" : "itens selecionados"} · Total{" "}
+              <strong className="text-foreground">{formatBRL(total)}</strong>
             </p>
           </div>
           <button
@@ -137,7 +196,7 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
           </button>
         </header>
 
-        <div className="grid gap-4 border-b border-border bg-muted/30 px-4 py-3 md:grid-cols-3">
+        <div className="grid gap-3 border-b border-border bg-muted/30 px-4 py-3 md:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold uppercase tracking-wider text-muted-foreground">
               Loja emissora
@@ -156,13 +215,25 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold uppercase tracking-wider text-muted-foreground">
-              Cliente (opcional)
+              Cliente
             </span>
             <input
               type="text"
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
               placeholder="Nome do cliente"
+              className="rounded-md border border-border bg-card px-2 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+              Telefone
+            </span>
+            <input
+              type="tel"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+              placeholder="(71) 9 0000-0000"
               className="rounded-md border border-border bg-card px-2 py-2 text-sm"
             />
           </label>
@@ -190,11 +261,16 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
               ref={printRef}
               items={items}
               cliente={cliente}
+              telefone={telefone}
               obs={obs}
               storeId={storeId}
               total={total}
               onQty={(sku, q) => {
                 setQty(sku, q);
+                setItems(listQuote());
+              }}
+              onPrice={(sku, p) => {
+                setPriceOverride(sku, p);
                 setItems(listQuote());
               }}
               onRemove={(sku) => {
@@ -253,73 +329,137 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// -------- Preview renderizado (fonte do html2canvas) --------
+// ---------- utils ----------
 
-import { forwardRef } from "react";
+function dataUrlToCanvas(dataUrl: string): Promise<HTMLCanvasElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d");
+      if (!ctx) return reject(new Error("no-ctx"));
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0);
+      resolve(c);
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+function drawRepeatHeader(
+  pdf: jsPDF,
+  store: (typeof STORES)[StoreId],
+  cliente: string,
+  x: number,
+  y: number,
+  w: number,
+) {
+  pdf.setFillColor(store.colors.primary);
+  pdf.rect(x, y, w, 20, "F");
+  pdf.setTextColor("#ffffff");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text(store.nome.toUpperCase(), x + 8, y + 13);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  const right = `${store.telefone}${cliente ? "  ·  Cliente: " + cliente : ""}`;
+  pdf.text(right, x + w - 8, y + 13, { align: "right" });
+  pdf.setTextColor("#000000");
+}
+
+function sanitizeUrl(u?: string | null): string | undefined {
+  if (!u) return undefined;
+  const s = String(u).trim();
+  if (!s || /^data:/i.test(s) || !/^https?:\/\//i.test(s)) return undefined;
+  const drive = s.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (drive) return `https://drive.google.com/uc?export=view&id=${drive[1]}`;
+  return s;
+}
+
+// -------- Preview renderizado (fonte para PNG/PDF) --------
 
 const QuotePreview = forwardRef<
   HTMLDivElement,
   {
     items: QuoteItem[];
     cliente: string;
+    telefone: string;
     obs: string;
     storeId: StoreId;
     total: number;
     onQty: (sku: string, qty: number) => void;
+    onPrice: (sku: string, price: number | undefined) => void;
     onRemove: (sku: string) => void;
   }
->(function QuotePreview({ items, cliente, obs, storeId, total, onQty, onRemove }, ref) {
+>(function QuotePreview(
+  { items, cliente, telefone, obs, storeId, total, onQty, onPrice, onRemove },
+  ref,
+) {
   const store = STORES[storeId];
   const now = new Date();
   const dataStr = now.toLocaleDateString("pt-BR");
   const validade = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
+  const headerBg = store.colors.headerBg;
+  const headerTextOnBg = headerBg.toLowerCase() === "#ffffff" ? store.colors.primary : store.colors.text;
 
   return (
     <div
       ref={ref}
       className="mx-auto w-full max-w-3xl bg-white text-neutral-900 shadow-lg"
-      style={{ fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}
+      style={{ fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", color: "#111111" }}
     >
-      {/* Cabeçalho da loja */}
+      {/* Cabeçalho da loja com LOGO OFICIAL */}
       <div
-        style={{
-          background: `linear-gradient(135deg, ${store.colors.primary} 0%, ${store.colors.primary} 65%, ${store.colors.secondary} 100%)`,
-          color: store.colors.text,
-        }}
-        className="flex items-center justify-between px-6 py-5"
+        style={{ background: headerBg, color: headerTextOnBg }}
+        className="flex items-center justify-between gap-4 px-6 py-4"
       >
-        <div>
-          <div
-            className="text-2xl font-black tracking-wide"
-            style={{ letterSpacing: "0.04em" }}
-          >
-            {store.wordmark}
+        <div className="flex items-center gap-4">
+          <img
+            src={store.logoUrl}
+            alt={store.nome}
+            crossOrigin="anonymous"
+            style={{ height: 64, width: "auto", objectFit: "contain" }}
+          />
+          <div style={{ color: headerTextOnBg }}>
+            <div className="text-[11px] uppercase tracking-widest" style={{ opacity: 0.8 }}>
+              Orçamento profissional
+            </div>
+            <div className="text-lg font-black leading-tight">{store.nome}</div>
+            <div className="text-[11px]" style={{ opacity: 0.85 }}>{store.vibe}</div>
           </div>
-          <div className="mt-1 text-xs opacity-90">{store.vibe}</div>
         </div>
-        <div className="text-right text-xs leading-relaxed">
-          <div className="font-semibold">Tel/WhatsApp</div>
+        <div className="text-right text-[11px] leading-relaxed" style={{ color: headerTextOnBg }}>
+          <div className="font-bold">Tel / WhatsApp</div>
           <div>{store.telefone}</div>
-          <div className="mt-1 opacity-80">Emitido em {dataStr}</div>
-          <div className="opacity-80">Válido até {validade}</div>
+          <div className="mt-1" style={{ opacity: 0.8 }}>Emitido em {dataStr}</div>
+          <div style={{ opacity: 0.8 }}>Válido até {validade}</div>
         </div>
       </div>
 
       {/* Faixa secundária */}
       <div
-        style={{ background: store.colors.secondary, color: store.colors.primary }}
-        className="px-6 py-2 text-xs font-bold uppercase tracking-widest"
+        style={{ background: store.colors.primary, color: "#ffffff" }}
+        className="flex flex-wrap items-center justify-between gap-2 px-6 py-2 text-[11px] font-bold uppercase tracking-widest"
       >
-        Orçamento · {items.length} {items.length === 1 ? "item" : "itens"}
-        {cliente ? ` · Cliente: ${cliente}` : ""}
+        <span>
+          {items.length} {items.length === 1 ? "item" : "itens"}
+          {cliente ? ` · Cliente: ${cliente}` : ""}
+          {telefone ? ` · ${telefone}` : ""}
+        </span>
+        <span>Total: {formatBRL(total)}</span>
       </div>
 
       {/* Tabela */}
-      <div className="p-6">
-        <table className="w-full border-collapse text-[12px]">
+      <div className="px-6 py-5">
+        <table className="w-full border-collapse text-[12px]" style={{ color: "#111111" }}>
           <thead>
             <tr
-              style={{ background: store.colors.primary, color: store.colors.text }}
+              style={{ background: store.colors.primary, color: "#ffffff" }}
               className="text-left"
             >
               <th className="px-2 py-2">Foto</th>
@@ -335,14 +475,23 @@ const QuotePreview = forwardRef<
           </thead>
           <tbody>
             {items.map((it) => {
-              const unit = parseNumber(it.precoVenda);
+              const unit = effectivePrice(it);
               const linha = isFinite(unit) ? unit * it.qty : NaN;
+              const priceStr =
+                typeof it.precoOverride === "number"
+                  ? String(it.precoOverride.toFixed(2)).replace(".", ",")
+                  : it.precoVenda ?? "";
               return (
-                <tr key={it.sku} className="border-b border-neutral-200 align-top">
+                <tr
+                  key={it.sku}
+                  style={{ borderBottom: "1px solid #e5e5e5" }}
+                  className="align-top"
+                >
                   <td className="px-2 py-2">
                     <img
                       src={sanitizeUrl(it.imagemUrl) ?? batproLogo.url}
                       alt={it.sku}
+                      crossOrigin="anonymous"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = batproLogo.url;
                       }}
@@ -351,11 +500,11 @@ const QuotePreview = forwardRef<
                   </td>
                   <td className="px-2 py-2">
                     <div className="font-bold">{it.sku}</div>
-                    <div className="text-neutral-600">
+                    <div style={{ color: "#555" }}>
                       {[it.marca, it.modelo].filter(Boolean).join(" · ")}
                     </div>
                     {it.descricao && (
-                      <div className="text-[11px] text-neutral-500">{it.descricao}</div>
+                      <div className="text-[11px]" style={{ color: "#777" }}>{it.descricao}</div>
                     )}
                   </td>
                   <td className="px-2 py-2 text-center">{it.amperagem || "—"}</td>
@@ -371,8 +520,24 @@ const QuotePreview = forwardRef<
                       className="w-14 rounded border border-neutral-300 px-1 py-0.5 text-center text-[12px]"
                     />
                   </td>
-                  <td className="px-2 py-2 text-right">{formatBRL(it.precoVenda)}</td>
-                  <td className="px-2 py-2 text-right font-semibold">
+                  <td className="px-2 py-2 text-right">
+                    <input
+                      type="text"
+                      value={priceStr}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v.trim()) return onPrice(it.sku, undefined);
+                        const n = parseBRL(v);
+                        onPrice(it.sku, isFinite(n) ? n : undefined);
+                      }}
+                      className="w-24 rounded border border-neutral-300 px-1 py-0.5 text-right text-[12px]"
+                      title="Editar preço apenas neste orçamento"
+                    />
+                  </td>
+                  <td
+                    className="px-2 py-2 text-right font-semibold"
+                    style={{ color: store.colors.primary }}
+                  >
                     {isFinite(linha) ? formatBRL(linha) : "—"}
                   </td>
                   <td className="px-2 py-2 no-print">
@@ -407,27 +572,58 @@ const QuotePreview = forwardRef<
 
         {obs && (
           <div
-            className="mt-4 rounded border-l-4 px-3 py-2 text-[11px] text-neutral-700"
-            style={{ borderColor: store.colors.primary, background: "#f7f7f7" }}
+            className="mt-4 rounded px-3 py-2 text-[11px]"
+            style={{
+              borderLeft: `4px solid ${store.colors.primary}`,
+              background: "#f7f7f7",
+              color: "#333",
+            }}
           >
             <strong>Observações:</strong> {obs}
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-between border-t pt-3 text-[10px] text-neutral-500">
+        {/* Rodapé institucional obrigatório */}
+        <div
+          className="mt-5 rounded-md px-4 py-3 text-[11px] leading-relaxed"
+          style={{
+            background: "#fafafa",
+            border: `1px solid ${store.colors.primary}22`,
+            color: "#333",
+          }}
+        >
+          <div
+            className="mb-2 text-[11px] font-bold uppercase tracking-wider"
+            style={{ color: store.colors.primary }}
+          >
+            Condições comerciais — {store.nome}
+          </div>
+          <ol className="ml-4 list-decimal space-y-1">
+            <li>
+              Valores promocionais condicionados à <strong>devolução da bateria usada</strong> (base
+              de troca).
+            </li>
+            <li>
+              Pagamento no local em até <strong>10x sem juros no cartão</strong>.
+            </li>
+            <li>
+              Taxa de <strong>visita técnica de R$ 45,00</strong> caso o problema constatado não seja
+              a bateria.
+            </li>
+          </ol>
+        </div>
+
+        <div
+          className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]"
+          style={{ color: "#888", borderColor: "#e5e5e5" }}
+        >
           <span>Orçamento gerado por BATPRO — valores sujeitos a alteração sem aviso prévio.</span>
-          <span>{store.nome}</span>
+          <span>{store.nome} · {store.telefone}</span>
         </div>
       </div>
     </div>
   );
 });
 
-function sanitizeUrl(u?: string | null): string | undefined {
-  if (!u) return undefined;
-  const s = String(u).trim();
-  if (!s || /^data:/i.test(s) || !/^https?:\/\//i.test(s)) return undefined;
-  const drive = s.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (drive) return `https://drive.google.com/uc?export=view&id=${drive[1]}`;
-  return s;
-}
+// Alias interno para linter — mantemos `toJpeg` importado caso queiramos alternar formato no futuro.
+void toJpeg;
