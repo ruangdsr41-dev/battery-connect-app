@@ -218,10 +218,13 @@ function SelectMini({
 
 export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMaster?: boolean }) {
   const indisponivel = (p.disponivel || "").trim().toUpperCase() !== "SIM" && !!p.disponivel;
+  // Fonte única da verdade: quote-store. Sem estado local para evitar dessincronia
+  // entre checkbox, destaque, contador e itens do orçamento.
   const [selected, setSelected] = useState<boolean>(() => isInQuote(p.sku));
 
   useEffect(() => {
     const sync = () => setSelected(isInQuote(p.sku));
+    sync();
     window.addEventListener(QUOTE_EVENT, sync);
     return () => window.removeEventListener(QUOTE_EVENT, sync);
   }, [p.sku]);
@@ -235,8 +238,8 @@ export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMast
       <button
         type="button"
         onClick={() => {
+          // toggleQuote dispara QUOTE_EVENT — o listener acima atualiza `selected`.
           toggleQuote(p);
-          setSelected((s) => !s);
         }}
         disabled={!p.sku}
         aria-pressed={selected}
