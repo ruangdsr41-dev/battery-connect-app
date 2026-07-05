@@ -1,8 +1,13 @@
 import type { CatalogProduct } from "@/lib/sheet.functions";
 
-const KEY = "batpro:quote-selection:v1";
+const KEY = "batpro:quote-selection:v2";
 const EVT = "batpro:quote-change";
 
+/**
+ * QuoteItem armazena um SNAPSHOT do produto no momento da adição.
+ * Edições feitas no orçamento (qty, precoOverride) NUNCA afetam o catálogo
+ * porque este objeto é uma cópia isolada em localStorage.
+ */
 export interface QuoteItem {
   sku: string;
   marca?: string;
@@ -14,7 +19,8 @@ export interface QuoteItem {
   cca?: string;
   tensao?: string;
   garantia?: string;
-  precoVenda?: string;
+  precoVenda?: string;      // preço original (imutável — snapshot do catálogo)
+  precoOverride?: number;   // preço editado APENAS no orçamento
   imagemUrl?: string;
   qty: number;
 }
@@ -42,7 +48,7 @@ export function listQuote(): QuoteItem[] {
   return Object.values(read());
 }
 
-export function isInQuote(sku: string): boolean {
+export function isInQuote(sku?: string): boolean {
   if (!sku) return false;
   return !!read()[sku];
 }
@@ -55,6 +61,7 @@ export function toggleQuote(p: CatalogProduct): boolean {
     write(map);
     return false;
   }
+  // Snapshot profundo — deep copy dos campos, sem referências ao catálogo.
   map[p.sku] = {
     sku: p.sku,
     marca: p.marca,
@@ -78,6 +85,18 @@ export function setQty(sku: string, qty: number) {
   const map = read();
   if (map[sku]) {
     map[sku].qty = Math.max(1, Math.min(999, qty | 0));
+    write(map);
+  }
+}
+
+export function setPriceOverride(sku: string, price: number | undefined) {
+  const map = read();
+  if (map[sku]) {
+    if (price === undefined || !isFinite(price)) {
+      delete map[sku].precoOverride;
+    } else {
+      map[sku].precoOverride = Math.max(0, price);
+    }
     write(map);
   }
 }
