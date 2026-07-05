@@ -1,4 +1,7 @@
 // Identidade visual das 3 lojas emissoras de orçamento
+import logoDisk from "@/assets/lojas/logo-disk.png.asset.json";
+import logoCasa from "@/assets/lojas/logo-casa.webp.asset.json";
+import logoStart from "@/assets/lojas/logo-start.webp.asset.json";
 
 export type StoreId = "disk" | "casa" | "start";
 
@@ -13,52 +16,60 @@ export interface StoreIdentity {
     secondary: string; // cor complementar
     text: string;      // cor do texto sobre o cabeçalho
     accent: string;    // cor para bordas / destaques suaves
+    headerBg: string;  // cor de fundo do cabeçalho onde a logo é aplicada
   };
-  wordmark: string;    // wordmark textual (fallback quando não há logo em imagem)
+  wordmark: string;
+  logoUrl: string;
 }
 
 export const STORES: Record<StoreId, StoreIdentity> = {
   disk: {
     id: "disk",
-    nome: "Disk Baterias",
+    nome: "Disk Baterias 24 Horas",
     telefone: "(71) 3431-2191",
     whatsapp: "5571343121911",
-    vibe: "Serviço ágil, 24 horas.",
+    vibe: "Atendimento 24 horas em Salvador.",
     colors: {
-      primary: "#0B3D91",   // azul
-      secondary: "#FFCC00", // amarelo
+      primary: "#0B3D91",
+      secondary: "#FFCC00",
       text: "#FFFFFF",
       accent: "#FFCC00",
+      headerBg: "#0B3D91",
     },
     wordmark: "DISK BATERIAS",
+    logoUrl: logoDisk.url,
   },
   casa: {
     id: "casa",
     nome: "Casa das Baterias Salvador",
     telefone: "(71) 2180-0189",
     whatsapp: "5571218001891",
-    vibe: "Institucional e confiável.",
+    vibe: "Tradição, confiança e garantia.",
     colors: {
       primary: "#0F3B8C",
-      secondary: "#FFFFFF",
+      secondary: "#F5A623",
       text: "#FFFFFF",
       accent: "#0F3B8C",
+      headerBg: "#FFFFFF",
     },
     wordmark: "CASA DAS BATERIAS SALVADOR",
+    logoUrl: logoCasa.url,
   },
   start: {
     id: "start",
     nome: "Start Baterias",
     telefone: "(71) 3510-2770",
     whatsapp: "5571351027701",
-    vibe: "Energia, performance, moderna.",
+    vibe: "Energia, performance e agilidade.",
     colors: {
-      primary: "#C8102E",   // vermelho
-      secondary: "#FFFFFF",
+      primary: "#C8102E",
+      secondary: "#111111",
       text: "#FFFFFF",
       accent: "#C8102E",
+      headerBg: "#FFFFFF",
     },
     wordmark: "START BATERIAS",
+    logoUrl: logoStart.url,
   },
 };
 
