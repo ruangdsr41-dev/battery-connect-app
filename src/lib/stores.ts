@@ -28,7 +28,7 @@ export const STORES: Record<StoreId, StoreIdentity> = {
     nome: "Disk Baterias 24 Horas",
     telefone: "(71) 3431-2191",
     whatsapp: "5571343121911",
-    vibe: "Atendimento 24 horas em Salvador.",
+    vibe: "Há mais de 40 anos oferecendo confiança, agilidade e atendimento especializado em baterias.",
     colors: {
       primary: "#0B3D91",
       secondary: "#FFCC00",
