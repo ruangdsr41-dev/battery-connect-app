@@ -66,7 +66,7 @@ export const STORES: Record<StoreId, StoreIdentity> = {
       secondary: "#111111",
       text: "#FFFFFF",
       accent: "#C8102E",
-      headerBg: "#FFFFFF",
+      headerBg: "#111111",
     },
     wordmark: "START BATERIAS",
     logoUrl: logoStart.url,
