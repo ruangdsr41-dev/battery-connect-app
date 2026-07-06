@@ -50,7 +50,7 @@ export const STORES: Record<StoreId, StoreIdentity> = {
       secondary: "#F5A623",
       text: "#FFFFFF",
       accent: "#0F3B8C",
-      headerBg: "#FFFFFF",
+      headerBg: "#0F3B8C",
     },
     wordmark: "CASA DAS BATERIAS SALVADOR",
     logoUrl: logoCasa.url,
