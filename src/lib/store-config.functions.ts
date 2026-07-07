@@ -40,7 +40,7 @@ export const saveStoreConfig = createServerFn({ method: "POST" })
       .upsert(
         {
           store_id: data.storeId,
-          data: data.data,
+          data: data.data as any,
           updated_by: context.userId,
           updated_at: new Date().toISOString(),
         },
