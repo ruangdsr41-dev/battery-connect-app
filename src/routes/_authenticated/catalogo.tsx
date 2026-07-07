@@ -5,6 +5,7 @@ import { Loader2, Search, Filter, X, ArrowUpDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ProductCard } from "@/components/CatalogModal";
+import { SelectAllButton } from "@/components/SelectAllButton";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 
 export const Route = createFileRoute("/_authenticated/catalogo")({
