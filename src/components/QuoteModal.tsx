@@ -669,7 +669,7 @@ const QuotePreview = forwardRef<
           {showTotal && (
             <tfoot>
               <tr>
-                <td colSpan={printMode ? 7 : 7} className="px-2 py-3 text-right text-[13px] font-semibold">
+                <td colSpan={7} className="px-2 py-3 text-right text-[13px] font-semibold">
                   Total estimado
                 </td>
                 <td
@@ -678,7 +678,7 @@ const QuotePreview = forwardRef<
                 >
                   {formatBRL(total)}
                 </td>
-                {!printMode && <td />}
+                <td data-print-hide="true" />
               </tr>
             </tfoot>
           )}
