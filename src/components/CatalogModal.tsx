@@ -154,6 +154,7 @@ export function CatalogModal({
             >
               {sortDir === "asc" ? "↑" : "↓"}
             </button>
+            <SelectAllButton items={filtered} />
           </div>
         </div>
 
