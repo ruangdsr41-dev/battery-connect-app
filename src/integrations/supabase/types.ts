@@ -71,6 +71,27 @@ export type Database = {
         }
         Relationships: []
       }
+      store_config: {
+        Row: {
+          data: Json
+          store_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data?: Json
+          store_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          store_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

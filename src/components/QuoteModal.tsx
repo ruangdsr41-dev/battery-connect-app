@@ -640,6 +640,12 @@ const QuotePreview = forwardRef<
         <div className="text-right text-[11px] leading-relaxed" style={{ color: headerText }}>
           <div className="font-bold">Tel / WhatsApp</div>
           <div>{store.telefone}</div>
+          {store.cnpj && store.cnpj.trim() && (
+            <div style={{ opacity: 0.9 }}>CNPJ: {store.cnpj}</div>
+          )}
+          {store.endereco && store.endereco.trim() && (
+            <div style={{ opacity: 0.9, maxWidth: 260 }}>{store.endereco}</div>
+          )}
           <div className="mt-1" style={{ opacity: 0.85 }}>Emitido em {dataStr}</div>
           <div style={{ opacity: 0.85 }}>Válido até {validade}</div>
         </div>

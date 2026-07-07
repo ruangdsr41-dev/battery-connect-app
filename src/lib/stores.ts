@@ -30,6 +30,10 @@ export interface StoreIdentity {
   whatsappOutro: string;
   /** Condições comerciais impressas no rodapé do orçamento e no WhatsApp. */
   footerConditions: string[];
+  /** Endereço institucional (opcional — só aparece no orçamento se preenchido). */
+  endereco?: string;
+  /** CNPJ institucional (opcional — só aparece no orçamento se preenchido). */
+  cnpj?: string;
 }
 
 export const STORES: Record<StoreId, StoreIdentity> = {

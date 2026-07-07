@@ -1,13 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, RotateCcw, Save, Check } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { STORES, STORE_LIST, type StoreId, type StoreIdentity } from "@/lib/stores";
-import { getStore, saveStore, resetStore, STORE_CONFIG_EVENT } from "@/lib/store-config";
+import { getStore, saveStore, resetStore, STORE_CONFIG_EVENT, loadStoreConfigs } from "@/lib/store-config";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — BATPRO" }] }),
+  beforeLoad: ({ context }) => {
+    if (!context.isMaster) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: ConfiguracoesPage,
 });
 
@@ -51,39 +56,57 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
   const [form, setForm] = useState<StoreIdentity>(() => getStore(storeId));
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(getStore(storeId));
+    loadStoreConfigs().finally(() => setForm(getStore(storeId)));
+  }, [storeId]);
+
+  useEffect(() => {
+    const sync = () => setForm(getStore(storeId));
+    window.addEventListener(STORE_CONFIG_EVENT, sync);
+    return () => window.removeEventListener(STORE_CONFIG_EVENT, sync);
   }, [storeId]);
 
   function set<K extends keyof StoreIdentity>(k: K, v: StoreIdentity[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
-    saveStore(storeId, {
-      nome: form.nome,
-      telefone: form.telefone,
-      whatsapp: form.whatsapp,
-      vibe: form.vibe,
-      logoUrl: form.logoUrl,
-      wordmark: form.wordmark,
-      whatsappIntro: form.whatsappIntro,
-      whatsappOutro: form.whatsappOutro,
-      footerConditions: form.footerConditions,
-    });
-    setSaved(true);
-    setSaving(false);
-    setTimeout(() => setSaved(false), 2000);
-    // dispara evento explicito para outros componentes escutarem
-    window.dispatchEvent(new CustomEvent(STORE_CONFIG_EVENT));
+    setError(null);
+    try {
+      await saveStore(storeId, {
+        nome: form.nome,
+        telefone: form.telefone,
+        whatsapp: form.whatsapp,
+        vibe: form.vibe,
+        logoUrl: form.logoUrl,
+        wordmark: form.wordmark,
+        whatsappIntro: form.whatsappIntro,
+        whatsappOutro: form.whatsappOutro,
+        footerConditions: form.footerConditions,
+        endereco: form.endereco,
+        cnpj: form.cnpj,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setError(err?.message ?? "Falha ao salvar configurações.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (!confirm("Restaurar as configurações padrão desta loja?")) return;
-    resetStore(storeId);
-    setForm(getStore(storeId));
+    setError(null);
+    try {
+      await resetStore(storeId);
+      setForm(getStore(storeId));
+    } catch (err: any) {
+      setError(err?.message ?? "Falha ao restaurar configurações.");
+    }
   }
 
   const conditionsText = form.footerConditions.join("\n");
@@ -122,7 +145,26 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </Field>
+      <Field label="Endereço (opcional)" className="md:col-span-2">
+        <input
+          type="text"
+          value={form.endereco ?? ""}
+          onChange={(e) => set("endereco", e.target.value)}
+          placeholder="Ex.: Av. Tancredo Neves, 1000 — Salvador/BA"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        />
+      </Field>
+      <Field label="CNPJ (opcional)">
+        <input
+          type="text"
+          value={form.cnpj ?? ""}
+          onChange={(e) => set("cnpj", e.target.value)}
+          placeholder="00.000.000/0000-00"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        />
+      </Field>
       <Field label="Wordmark (marca no cabeçalho)" className="md:col-span-2">
+
         <input
           type="text"
           value={form.wordmark}
@@ -176,7 +218,7 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
         </p>
       </Field>
 
-      <div className="flex items-center gap-2 md:col-span-2">
+      <div className="flex flex-wrap items-center gap-2 md:col-span-2">
         <button
           type="button"
           onClick={handleSave}
@@ -193,6 +235,9 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
         >
           <RotateCcw className="h-4 w-4" /> Restaurar padrão
         </button>
+        {error && (
+          <span className="text-xs font-medium text-destructive">{error}</span>
+        )}
       </div>
     </div>
   );

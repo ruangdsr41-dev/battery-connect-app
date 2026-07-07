@@ -1,8 +1,14 @@
-// Persistência das configurações de orçamento por loja (aba Configurações).
-// Cada loja mantém overrides sobre os defaults em src/lib/stores.ts.
+// Cache global das configurações de loja (compartilhadas entre todos os usuários).
+// Fonte da verdade: tabela public.store_config. Aqui mantemos um snapshot em
+// memória para leituras síncronas de UI (getStore/getAllStores) e disparamos
+// STORE_CONFIG_EVENT quando o snapshot é atualizado.
 import { STORES, STORE_LIST, type StoreId, type StoreIdentity } from "@/lib/stores";
+import {
+  fetchStoreConfigs,
+  saveStoreConfig as saveStoreConfigFn,
+  resetStoreConfig as resetStoreConfigFn,
+} from "@/lib/store-config.functions";
 
-const KEY = "batpro:store-config:v1";
 export const STORE_CONFIG_EVENT = "batpro:store-config-change";
 
 export type StoreOverride = Partial<
@@ -17,33 +23,44 @@ export type StoreOverride = Partial<
     | "whatsappIntro"
     | "whatsappOutro"
     | "footerConditions"
+    | "endereco"
+    | "cnpj"
   >
 >;
 
-type Store = Record<StoreId, StoreOverride>;
+type Snapshot = Partial<Record<StoreId, StoreOverride>>;
 
-function read(): Store {
-  if (typeof window === "undefined") return {} as Store;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Store) : ({} as Store);
-  } catch {
-    return {} as Store;
+let snapshot: Snapshot = {};
+let loaded = false;
+let inFlight: Promise<void> | null = null;
+
+function notify() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(STORE_CONFIG_EVENT));
   }
 }
 
-function write(map: Store) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(map));
-    window.dispatchEvent(new CustomEvent(STORE_CONFIG_EVENT));
-  } catch {
-    /* noop */
-  }
+export async function loadStoreConfigs(force = false): Promise<void> {
+  if (loaded && !force) return;
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    try {
+      const map = await fetchStoreConfigs();
+      snapshot = (map ?? {}) as Snapshot;
+      loaded = true;
+      notify();
+    } catch (err) {
+      console.warn("[BATPRO] Falha ao carregar store_config:", err);
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
 }
 
 export function getStore(id: StoreId): StoreIdentity {
   const base = STORES[id];
-  const patch = read()[id] ?? {};
+  const patch = snapshot[id] ?? {};
   return { ...base, ...patch } as StoreIdentity;
 }
 
@@ -51,14 +68,17 @@ export function getAllStores(): StoreIdentity[] {
   return STORE_LIST.map((s) => getStore(s.id));
 }
 
-export function saveStore(id: StoreId, patch: StoreOverride) {
-  const map = read();
-  map[id] = { ...(map[id] ?? {}), ...patch };
-  write(map);
+export async function saveStore(id: StoreId, patch: StoreOverride): Promise<void> {
+  const merged: StoreOverride = { ...(snapshot[id] ?? {}), ...patch };
+  await saveStoreConfigFn({ data: { storeId: id, data: merged } });
+  snapshot = { ...snapshot, [id]: merged };
+  notify();
 }
 
-export function resetStore(id: StoreId) {
-  const map = read();
-  delete map[id];
-  write(map);
+export async function resetStore(id: StoreId): Promise<void> {
+  await resetStoreConfigFn({ data: { storeId: id } });
+  const next = { ...snapshot };
+  delete next[id];
+  snapshot = next;
+  notify();
 }

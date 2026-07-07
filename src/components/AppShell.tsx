@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { QuoteBar } from "@/components/QuoteBar";
+import { loadStoreConfigs } from "@/lib/store-config";
+
 
 
 export function AppShell({
@@ -31,6 +33,11 @@ export function AppShell({
       window.removeEventListener("online", upd);
       window.removeEventListener("offline", upd);
     };
+  }, []);
+
+  useEffect(() => {
+    // Carrega configurações globais das lojas (compartilhadas via banco).
+    loadStoreConfigs().catch(() => {});
   }, []);
 
   const tab = location.pathname;
@@ -117,12 +124,14 @@ export function AppShell({
             icon={<Star />}
             label="Favoritos"
           />
-          <TabLink
-            to="/configuracoes"
-            active={tab.startsWith("/configuracoes")}
-            icon={<Settings />}
-            label="Config"
-          />
+          {isMaster && (
+            <TabLink
+              to="/configuracoes"
+              active={tab.startsWith("/configuracoes")}
+              icon={<Settings />}
+              label="Config"
+            />
+          )}
           {isMaster && (
             <>
               <TabLink
