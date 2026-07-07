@@ -113,21 +113,7 @@ export function toggleQuote(p: CatalogProduct): boolean {
     write(map);
     return false;
   }
-  map[p.sku] = {
-    sku: p.sku,
-    marca: p.marca,
-    modelo: p.modelo,
-    descricao: p.descricao,
-    categoria: p.categoria,
-    tecnologia: p.tecnologia,
-    amperagem: p.amperagem,
-    cca: p.cca,
-    tensao: p.tensao,
-    garantia: p.garantia,
-    precoVenda: p.precoVenda,
-    imagemUrl: p.imagemUrl,
-    qty: 1,
-  };
+  map[p.sku] = snapshot(p);
   write(map);
   return true;
 }
