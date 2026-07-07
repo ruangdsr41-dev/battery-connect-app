@@ -546,7 +546,7 @@ const QuotePreview = forwardRef<
   const headerText = "#ffffff";
   // Chip da logo: quando a arte já tem texto branco (Casa), evitar chip branco
   // que apagaria a marca — usar o próprio fundo do cabeçalho.
-  const logoChipBg = store.logoOnDark ? store.headerBg ?? store.colors.headerBg : store.logoChipBg;
+  const logoChipBg = store.logoOnDark ? store.colors.headerBg : store.logoChipBg;
 
   return (
     <div
