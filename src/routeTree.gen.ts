@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedFavoritosRouteImport } from './routes/_authenticated/favoritos'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated/catalogo'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
@@ -49,6 +50,12 @@ const AuthenticatedFavoritosRoute = AuthenticatedFavoritosRouteImport.update({
   path: '/favoritos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCatalogoRoute = AuthenticatedCatalogoRouteImport.update({
   id: '/catalogo',
   path: '/catalogo',
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/catalogo': typeof AuthenticatedCatalogoRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/favoritos': typeof AuthenticatedFavoritosRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -89,6 +97,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/catalogo': typeof AuthenticatedCatalogoRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/favoritos': typeof AuthenticatedFavoritosRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
@@ -102,6 +111,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/catalogo': typeof AuthenticatedCatalogoRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/favoritos': typeof AuthenticatedFavoritosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin'
     | '/catalogo'
+    | '/configuracoes'
     | '/favoritos'
     | '/admin/dashboard'
     | '/admin/usuarios'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin'
     | '/catalogo'
+    | '/configuracoes'
     | '/favoritos'
     | '/'
     | '/admin/dashboard'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/admin'
     | '/_authenticated/catalogo'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/favoritos'
     | '/_authenticated/'
     | '/_authenticated/admin/dashboard'
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFavoritosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/catalogo': {
       id: '/_authenticated/catalogo'
       path: '/catalogo'
@@ -245,6 +265,7 @@ const AuthenticatedAdminRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedCatalogoRoute: typeof AuthenticatedCatalogoRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedFavoritosRoute: typeof AuthenticatedFavoritosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -252,6 +273,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedCatalogoRoute: AuthenticatedCatalogoRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedFavoritosRoute: AuthenticatedFavoritosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
