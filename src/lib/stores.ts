@@ -105,8 +105,8 @@ export const STORES: Record<StoreId, StoreIdentity> = {
     },
     wordmark: "START BATERIAS",
     logoUrl: logoStart.url,
-    logoOnDark: false,
-    logoChipBg: "#FFFFFF",
+    logoOnDark: true,
+    logoChipBg: "#111111",
     whatsappIntro:
       "Olá{cliente}! Aqui é da *Start Baterias* ⚡\nEnergia e performance para o seu veículo. Segue seu orçamento:",
     whatsappOutro:
