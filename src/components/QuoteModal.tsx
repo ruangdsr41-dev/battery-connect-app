@@ -544,8 +544,9 @@ const QuotePreview = forwardRef<
   const validade = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
   const headerBg = store.colors.headerBg;
   const headerText = "#ffffff";
-  // Logo em chip branco quando o fundo é escuro para garantir legibilidade
-  const logoChipBg = "#ffffff";
+  // Chip da logo: quando a arte já tem texto branco (Casa), evitar chip branco
+  // que apagaria a marca — usar o próprio fundo do cabeçalho.
+  const logoChipBg = store.logoOnDark ? store.headerBg ?? store.colors.headerBg : store.logoChipBg;
 
   return (
     <div
