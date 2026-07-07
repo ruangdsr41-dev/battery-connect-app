@@ -688,17 +688,9 @@ const QuotePreview = forwardRef<
             Condições comerciais — {store.nome}
           </div>
           <ol className="ml-4 list-decimal space-y-1">
-            <li>
-              Valores promocionais condicionados à <strong>devolução da bateria usada</strong> (base
-              de troca).
-            </li>
-            <li>
-              Pagamento no local em até <strong>10x sem juros no cartão</strong>.
-            </li>
-            <li>
-              Taxa de <strong>visita técnica de R$ 45,00</strong> caso o problema constatado não seja
-              a bateria.
-            </li>
+            {store.footerConditions.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
           </ol>
         </div>
 
