@@ -651,7 +651,7 @@ const QuotePreview = forwardRef<
               <th className="px-2 py-2 text-center">Qtd</th>
               <th className="px-2 py-2 text-right">Unit.</th>
               <th className="px-2 py-2 text-right">Total</th>
-              {!printMode && <th className="px-2 py-2"></th>}
+              <th className="px-2 py-2" data-print-hide="true"></th>
             </tr>
           </thead>
           <tbody>
