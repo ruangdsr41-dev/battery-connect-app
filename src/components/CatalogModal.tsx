@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import { X, ArrowUpDown, Filter, PackageX, Loader2, Check } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 import { BatteryImage } from "@/components/BatteryImage";
+import { getCatalogFallbackImage } from "@/lib/catalog-image";
 import { SelectAllButton } from "@/components/SelectAllButton";
 import { isInQuote, toggleQuote, QUOTE_EVENT } from "@/lib/quote-store";
 
