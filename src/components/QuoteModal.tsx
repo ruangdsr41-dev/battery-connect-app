@@ -84,7 +84,7 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   const [showTotal, setShowTotal] = useState(true);
   const [busy, setBusy] = useState<"pdf" | "png" | "copy" | null>(null);
   const [copied, setCopied] = useState(false);
-  const [printMode, setPrintMode] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,7 +93,13 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener(QUOTE_EVENT, sync);
   }, []);
 
-  const store = STORES[storeId];
+  useEffect(() => {
+    const bump = () => setConfigVersion((v) => v + 1);
+    window.addEventListener(STORE_CONFIG_EVENT, bump);
+    return () => window.removeEventListener(STORE_CONFIG_EVENT, bump);
+  }, []);
+
+  const store = useMemo(() => getStore(storeId), [storeId, configVersion]);
   const total = useMemo(
     () =>
       items.reduce((acc, it) => {
