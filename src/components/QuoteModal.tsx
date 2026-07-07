@@ -18,23 +18,10 @@ import { parseBRL, formatBRL } from "@/lib/price";
 import { getBatteryImage } from "@/lib/battery-image";
 import type { BatteryApplication } from "@/lib/sheet.functions";
 
+
 function effectivePrice(it: QuoteItem): number {
   if (typeof it.precoOverride === "number" && isFinite(it.precoOverride)) return it.precoOverride;
   return parseBRL(it.precoVenda);
-}
-
-function normCat(c?: string): BatteryApplication["category"] {
-  const s = (c || "").toLowerCase();
-  if (s.includes("moto")) return "motos";
-  if (s.includes("caminh") || s.includes("truck") || s.includes("pesad")) return "caminhoes";
-  return "carros";
-}
-
-function fallbackImageFor(it: QuoteItem): string {
-  return getBatteryImage({
-    category: normCat(it.categoria),
-    tecnologia: it.tecnologia,
-  } as BatteryApplication).url;
 }
 
 function sanitizeUrl(u?: string | null): string | undefined {
@@ -46,9 +33,15 @@ function sanitizeUrl(u?: string | null): string | undefined {
   return s;
 }
 
+/**
+ * Regra V6: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
+ * O <BatteryImage /> no catálogo mostra a URL da planilha e cai no logo BatPro
+ * quando falta ou falha — nunca usa a arte fixa da Moura.
+ */
 function resolvedImage(it: QuoteItem): string {
-  return sanitizeUrl(it.imagemUrl) ?? fallbackImageFor(it);
+  return sanitizeUrl(it.imagemUrl) ?? batproLogo.url;
 }
+
 
 async function waitForImages(root: HTMLElement) {
   const imgs = Array.from(root.querySelectorAll("img"));
