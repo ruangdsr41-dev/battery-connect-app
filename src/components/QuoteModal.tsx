@@ -491,9 +491,10 @@ function buildWhatsAppText({
       const p = effectivePrice(it);
       const preco = isFinite(p) ? formatBRL(p) : "sob consulta";
       const marca = it.marca ?? "";
-      const modelo = it.modelo ?? it.sku;
+      const ahRaw = (it.amperagem ?? "").toString().trim();
+      const ah = ahRaw ? ` ${/ah$/i.test(ahRaw) ? ahRaw : `${ahRaw}Ah`}` : "";
       const qty = it.qty > 1 ? ` (x${it.qty})` : "";
-      linhas.push(`• ${marca} — ${modelo}${qty} — ${preco}`);
+      linhas.push(`• ${marca}${ah}${qty} — ${preco}`);
     }
     linhas.push("");
   }
