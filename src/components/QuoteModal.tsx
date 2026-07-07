@@ -12,11 +12,9 @@ import {
   QUOTE_EVENT,
   type QuoteItem,
 } from "@/lib/quote-store";
-import { STORE_LIST, STORES, type StoreId } from "@/lib/stores";
+import { STORE_LIST, STORES, type StoreId, type StoreIdentity } from "@/lib/stores";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { parseBRL, formatBRL } from "@/lib/price";
-import { getBatteryImage } from "@/lib/battery-image";
-import type { BatteryApplication } from "@/lib/sheet.functions";
 
 
 function effectivePrice(it: QuoteItem): number {
