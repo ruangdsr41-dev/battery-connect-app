@@ -109,42 +109,76 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     [items],
   );
 
-  async function withPrintMode<T>(fn: () => Promise<T>): Promise<T> {
-    setPrintMode(true);
-    // esperar o React commitar o novo modo
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
+  /**
+   * Captura o preview usando um clone montado FORA da tela.
+   * Assim o layout visível nunca muda durante a exportação, resolvendo
+   * o "deslocamento" reclamado na especificação v8.
+   */
+  async function captureClone(pixelRatio: number): Promise<{ dataUrl: string; width: number; height: number }> {
+    const src = printRef.current;
+    if (!src) throw new Error("no-print-ref");
+    const rect = src.getBoundingClientRect();
+    const width = Math.max(src.scrollWidth, Math.ceil(rect.width));
+
+    const stage = document.createElement("div");
+    stage.style.cssText = [
+      "position:fixed",
+      "left:-100000px",
+      "top:0",
+      "pointer-events:none",
+      "z-index:-1",
+      "background:#ffffff",
+      `width:${width}px`,
+    ].join(";");
+
+    const clone = src.cloneNode(true) as HTMLElement;
+    clone.style.maxWidth = "none";
+    clone.style.width = `${width}px`;
+    clone.style.margin = "0";
+    clone.style.boxShadow = "none";
+    clone.style.transform = "none";
+
+    // Substitui controles interativos por texto estático (limpa a exportação).
+    clone.querySelectorAll<HTMLElement>("[data-print-hide='true']").forEach((el) => el.remove());
+    clone.querySelectorAll<HTMLInputElement>("input[data-print-value]").forEach((input) => {
+      const span = document.createElement("span");
+      span.textContent = input.getAttribute("data-print-value") || input.value;
+      span.style.cssText = "display:inline-block;padding:0 2px;";
+      input.replaceWith(span);
+    });
+
+    stage.appendChild(clone);
+    document.body.appendChild(stage);
+
     try {
-      return await fn();
+      await waitForImages(clone);
+      // um frame para garantir que layout final foi aplicado
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      const height = clone.scrollHeight;
+      const dataUrl = await toPng(clone, {
+        pixelRatio,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        width,
+        height,
+        canvasWidth: width,
+        canvasHeight: height,
+        style: { transform: "none", margin: "0" },
+      });
+      return { dataUrl, width, height };
     } finally {
-      setPrintMode(false);
+      stage.remove();
     }
   }
 
   async function exportPNG() {
     setBusy("png");
     try {
-      await withPrintMode(async () => {
-        const node = printRef.current;
-        if (!node) return;
-        await waitForImages(node);
-        const w = node.scrollWidth;
-        const h = node.scrollHeight;
-        const dataUrl = await toPng(node, {
-          pixelRatio: 2.5,
-          backgroundColor: "#ffffff",
-          cacheBust: true,
-          width: w,
-          height: h,
-          canvasWidth: w,
-          canvasHeight: h,
-          style: { transform: "none" },
-        });
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = `Orcamento_${slugStore(store.nome)}_${today()}.png`;
-        a.click();
-      });
+      const { dataUrl } = await captureClone(2.5);
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `Orcamento_${slugStore(store.nome)}_${today()}.png`;
+      a.click();
     } catch (err) {
       console.error("[BATPRO] PNG export falhou:", err);
       alert("Não foi possível gerar o PNG.");
@@ -156,59 +190,43 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   async function exportPDF() {
     setBusy("pdf");
     try {
-      await withPrintMode(async () => {
-        const node = printRef.current;
-        if (!node) return;
-        await waitForImages(node);
-        const w = node.scrollWidth;
-        const h = node.scrollHeight;
-        const dataUrl = await toPng(node, {
-          pixelRatio: 2,
-          backgroundColor: "#ffffff",
-          cacheBust: true,
-          width: w,
-          height: h,
-          canvasWidth: w,
-          canvasHeight: h,
-          style: { transform: "none" },
-        });
-        const canvas = await dataUrlToCanvas(dataUrl);
+      const { dataUrl } = await captureClone(2);
+      const canvas = await dataUrlToCanvas(dataUrl);
 
-        const pdf = new jsPDF({ unit: "pt", format: "a4" });
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 20;
-        const contentW = pageW - margin * 2;
-        const contentH = pageH - margin * 2;
-        const scale = contentW / canvas.width;
-        const totalHeightPt = canvas.height * scale;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentW = pageW - margin * 2;
+      const contentH = pageH - margin * 2;
+      const scale = contentW / canvas.width;
+      const totalHeightPt = canvas.height * scale;
 
-        if (totalHeightPt <= contentH) {
-          const jpeg = canvas.toDataURL("image/jpeg", 0.94);
-          pdf.addImage(jpeg, "JPEG", margin, margin, contentW, totalHeightPt);
-        } else {
-          const pxPerPage = contentH / scale;
-          let sy = 0;
-          let pageIdx = 0;
-          while (sy < canvas.height) {
-            const sliceH = Math.min(pxPerPage, canvas.height - sy);
-            const tmp = document.createElement("canvas");
-            tmp.width = canvas.width;
-            tmp.height = sliceH;
-            const ctx = tmp.getContext("2d");
-            if (!ctx) break;
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, tmp.width, tmp.height);
-            ctx.drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-            const jpeg = tmp.toDataURL("image/jpeg", 0.94);
-            if (pageIdx > 0) pdf.addPage();
-            pdf.addImage(jpeg, "JPEG", margin, margin, contentW, sliceH * scale);
-            sy += sliceH;
-            pageIdx += 1;
-          }
+      if (totalHeightPt <= contentH) {
+        const jpeg = canvas.toDataURL("image/jpeg", 0.94);
+        pdf.addImage(jpeg, "JPEG", margin, margin, contentW, totalHeightPt);
+      } else {
+        const pxPerPage = contentH / scale;
+        let sy = 0;
+        let pageIdx = 0;
+        while (sy < canvas.height) {
+          const sliceH = Math.min(pxPerPage, canvas.height - sy);
+          const tmp = document.createElement("canvas");
+          tmp.width = canvas.width;
+          tmp.height = sliceH;
+          const ctx = tmp.getContext("2d");
+          if (!ctx) break;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, tmp.width, tmp.height);
+          ctx.drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          const jpeg = tmp.toDataURL("image/jpeg", 0.94);
+          if (pageIdx > 0) pdf.addPage();
+          pdf.addImage(jpeg, "JPEG", margin, margin, contentW, sliceH * scale);
+          sy += sliceH;
+          pageIdx += 1;
         }
-        pdf.save(`Orcamento_${slugStore(store.nome)}_${today()}.pdf`);
-      });
+      }
+      pdf.save(`Orcamento_${slugStore(store.nome)}_${today()}.pdf`);
     } catch (err) {
       console.error("[BATPRO] PDF export falhou:", err);
       alert("Não foi possível gerar o PDF.");
