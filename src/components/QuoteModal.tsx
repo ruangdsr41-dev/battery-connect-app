@@ -12,29 +12,14 @@ import {
   QUOTE_EVENT,
   type QuoteItem,
 } from "@/lib/quote-store";
-import { STORE_LIST, STORES, type StoreId } from "@/lib/stores";
+import { STORE_LIST, STORES, type StoreId, type StoreIdentity } from "@/lib/stores";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { parseBRL, formatBRL } from "@/lib/price";
-import { getBatteryImage } from "@/lib/battery-image";
-import type { BatteryApplication } from "@/lib/sheet.functions";
+
 
 function effectivePrice(it: QuoteItem): number {
   if (typeof it.precoOverride === "number" && isFinite(it.precoOverride)) return it.precoOverride;
   return parseBRL(it.precoVenda);
-}
-
-function normCat(c?: string): BatteryApplication["category"] {
-  const s = (c || "").toLowerCase();
-  if (s.includes("moto")) return "motos";
-  if (s.includes("caminh") || s.includes("truck") || s.includes("pesad")) return "caminhoes";
-  return "carros";
-}
-
-function fallbackImageFor(it: QuoteItem): string {
-  return getBatteryImage({
-    category: normCat(it.categoria),
-    tecnologia: it.tecnologia,
-  } as BatteryApplication).url;
 }
 
 function sanitizeUrl(u?: string | null): string | undefined {
@@ -46,9 +31,15 @@ function sanitizeUrl(u?: string | null): string | undefined {
   return s;
 }
 
+/**
+ * Regra V6: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
+ * O <BatteryImage /> no catálogo mostra a URL da planilha e cai no logo BatPro
+ * quando falta ou falha — nunca usa a arte fixa da Moura.
+ */
 function resolvedImage(it: QuoteItem): string {
-  return sanitizeUrl(it.imagemUrl) ?? fallbackImageFor(it);
+  return sanitizeUrl(it.imagemUrl) ?? batproLogo.url;
 }
+
 
 async function waitForImages(root: HTMLElement) {
   const imgs = Array.from(root.querySelectorAll("img"));
@@ -220,7 +211,7 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     try {
       const txt = buildWhatsAppText({
         items,
-        storeName: store.nome,
+        store,
         cliente,
         total,
         showTotal,
@@ -453,20 +444,21 @@ function dataUrlToCanvas(dataUrl: string): Promise<HTMLCanvasElement> {
 
 function buildWhatsAppText({
   items,
-  storeName,
+  store,
   cliente,
   total,
   showTotal,
 }: {
   items: QuoteItem[];
-  storeName: string;
+  store: StoreIdentity;
   cliente: string;
   total: number;
   showTotal: boolean;
 }): string {
-  const saud = cliente
-    ? `Olá, ${cliente}! Segue seu orçamento da *${storeName}*:`
-    : `Olá! Segue seu orçamento da *${storeName}*:`;
+  const clienteTag = cliente ? `, ${cliente}` : "";
+  const saud = store.whatsappIntro
+    .replace("{cliente}", clienteTag)
+    .replace("{loja}", store.nome);
 
   // agrupa por garantia
   const groups = new Map<string, QuoteItem[]>();
@@ -487,7 +479,15 @@ function buildWhatsAppText({
   for (const [g, list] of ordered) {
     const gLabel = /^\d+$/.test(g) ? `${g} Meses` : g;
     linhas.push(`🛡️ *Garantia: ${gLabel}*`);
-    for (const it of list) {
+    // dentro do grupo: maior preço primeiro
+    const sortedList = [...list].sort((a, b) => {
+      const pa = effectivePrice(a);
+      const pb = effectivePrice(b);
+      const va = isFinite(pa) ? pa : -Infinity;
+      const vb = isFinite(pb) ? pb : -Infinity;
+      return vb - va;
+    });
+    for (const it of sortedList) {
       const p = effectivePrice(it);
       const preco = isFinite(p) ? formatBRL(p) : "sob consulta";
       const marca = it.marca ?? "";
@@ -505,12 +505,17 @@ function buildWhatsAppText({
   }
 
   linhas.push("📌 *Condições:*");
-  linhas.push("• Valores condicionados à devolução da bateria usada (base de troca).");
-  linhas.push("• Pagamento no local em até 10x sem juros no cartão.");
-  linhas.push("• Taxa de visita técnica de R$ 45,00 caso o problema não seja a bateria.");
+  for (const c of store.footerConditions) {
+    linhas.push(`• ${c}`);
+  }
+  if (store.whatsappOutro) {
+    linhas.push("");
+    linhas.push(store.whatsappOutro);
+  }
 
   return linhas.join("\n");
 }
+
 
 // -------- Preview renderizado (fonte para PNG/PDF) --------
 
@@ -539,8 +544,9 @@ const QuotePreview = forwardRef<
   const validade = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
   const headerBg = store.colors.headerBg;
   const headerText = "#ffffff";
-  // Logo em chip branco quando o fundo é escuro para garantir legibilidade
-  const logoChipBg = "#ffffff";
+  // Chip da logo: quando a arte já tem texto branco (Casa), evitar chip branco
+  // que apagaria a marca — usar o próprio fundo do cabeçalho.
+  const logoChipBg = store.logoOnDark ? store.colors.headerBg : store.logoChipBg;
 
   return (
     <div
@@ -682,17 +688,9 @@ const QuotePreview = forwardRef<
             Condições comerciais — {store.nome}
           </div>
           <ol className="ml-4 list-decimal space-y-1">
-            <li>
-              Valores promocionais condicionados à <strong>devolução da bateria usada</strong> (base
-              de troca).
-            </li>
-            <li>
-              Pagamento no local em até <strong>10x sem juros no cartão</strong>.
-            </li>
-            <li>
-              Taxa de <strong>visita técnica de R$ 45,00</strong> caso o problema constatado não seja
-              a bateria.
-            </li>
+            {store.footerConditions.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
           </ol>
         </div>
 
@@ -748,9 +746,7 @@ function QuoteRow({
           crossOrigin="anonymous"
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
-            const fb = fallbackImageFor(it);
-            if (img.src !== fb) img.src = fb;
-            else if (img.src !== batproLogo.url) img.src = batproLogo.url;
+            if (img.src !== batproLogo.url) img.src = batproLogo.url;
           }}
           style={{ width: 46, height: 46, objectFit: "contain" }}
         />

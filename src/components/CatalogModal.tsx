@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import { X, ArrowUpDown, Filter, PackageX, Loader2, Check } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 import { BatteryImage } from "@/components/BatteryImage";
+import { SelectAllButton } from "@/components/SelectAllButton";
 import { isInQuote, toggleQuote, QUOTE_EVENT } from "@/lib/quote-store";
 
 type SortKey = "sku" | "marca" | "precoVenda" | "amperagem" | "cca" | "disponivel" | "categoria";
@@ -153,6 +154,7 @@ export function CatalogModal({
             >
               {sortDir === "asc" ? "↑" : "↓"}
             </button>
+            <SelectAllButton items={filtered} />
           </div>
         </div>
 
