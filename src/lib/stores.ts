@@ -48,8 +48,8 @@ export const STORES: Record<StoreId, StoreIdentity> = {
     },
     wordmark: "DISK BATERIAS",
     logoUrl: logoDisk.url,
-    logoOnDark: false,
-    logoChipBg: "#FFFFFF",
+    logoOnDark: true,
+    logoChipBg: "#0B3D91",
     whatsappIntro:
       "Olá{cliente}! Aqui é da *Disk Baterias 24 Horas* 🔋\nAtendimento 24h, entrega expressa e instalação no local. Segue seu orçamento:",
     whatsappOutro:
