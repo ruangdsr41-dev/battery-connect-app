@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { QuoteBar } from "@/components/QuoteBar";
+import { loadStoreConfigs } from "@/lib/store-config";
+
 
 
 export function AppShell({
