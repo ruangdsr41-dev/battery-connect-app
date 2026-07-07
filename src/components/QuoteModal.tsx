@@ -741,10 +741,11 @@ function QuoteRow({
           crossOrigin="anonymous"
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
-            const fb = fallbackImageFor(it);
-            if (img.src !== fb) img.src = fb;
-            else if (img.src !== batproLogo.url) img.src = batproLogo.url;
+            if (img.src !== batproLogo.url) img.src = batproLogo.url;
           }}
+          style={{ width: 46, height: 46, objectFit: "contain" }}
+        />
+      </td>
           style={{ width: 46, height: 46, objectFit: "contain" }}
         />
       </td>
