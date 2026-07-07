@@ -557,23 +557,20 @@ const QuotePreview = forwardRef<
     storeId: StoreId;
     total: number;
     showTotal: boolean;
-    printMode: boolean;
     onQty: (sku: string, qty: number) => void;
     onPrice: (sku: string, price: number | undefined) => void;
     onRemove: (sku: string) => void;
   }
 >(function QuotePreview(
-  { items, cliente, telefone, obs, storeId, total, showTotal, printMode, onQty, onPrice, onRemove },
+  { items, cliente, telefone, obs, storeId, total, showTotal, onQty, onPrice, onRemove },
   ref,
 ) {
-  const store = STORES[storeId];
+  const store = getStore(storeId);
   const now = new Date();
   const dataStr = now.toLocaleDateString("pt-BR");
   const validade = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
   const headerBg = store.colors.headerBg;
   const headerText = "#ffffff";
-  // Chip da logo: quando a arte já tem texto branco (Casa), evitar chip branco
-  // que apagaria a marca — usar o próprio fundo do cabeçalho.
   const logoChipBg = store.logoOnDark ? store.colors.headerBg : store.logoChipBg;
 
   return (
