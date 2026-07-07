@@ -56,39 +56,57 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
   const [form, setForm] = useState<StoreIdentity>(() => getStore(storeId));
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(getStore(storeId));
+    loadStoreConfigs().finally(() => setForm(getStore(storeId)));
+  }, [storeId]);
+
+  useEffect(() => {
+    const sync = () => setForm(getStore(storeId));
+    window.addEventListener(STORE_CONFIG_EVENT, sync);
+    return () => window.removeEventListener(STORE_CONFIG_EVENT, sync);
   }, [storeId]);
 
   function set<K extends keyof StoreIdentity>(k: K, v: StoreIdentity[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
-    saveStore(storeId, {
-      nome: form.nome,
-      telefone: form.telefone,
-      whatsapp: form.whatsapp,
-      vibe: form.vibe,
-      logoUrl: form.logoUrl,
-      wordmark: form.wordmark,
-      whatsappIntro: form.whatsappIntro,
-      whatsappOutro: form.whatsappOutro,
-      footerConditions: form.footerConditions,
-    });
-    setSaved(true);
-    setSaving(false);
-    setTimeout(() => setSaved(false), 2000);
-    // dispara evento explicito para outros componentes escutarem
-    window.dispatchEvent(new CustomEvent(STORE_CONFIG_EVENT));
+    setError(null);
+    try {
+      await saveStore(storeId, {
+        nome: form.nome,
+        telefone: form.telefone,
+        whatsapp: form.whatsapp,
+        vibe: form.vibe,
+        logoUrl: form.logoUrl,
+        wordmark: form.wordmark,
+        whatsappIntro: form.whatsappIntro,
+        whatsappOutro: form.whatsappOutro,
+        footerConditions: form.footerConditions,
+        endereco: form.endereco,
+        cnpj: form.cnpj,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setError(err?.message ?? "Falha ao salvar configurações.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (!confirm("Restaurar as configurações padrão desta loja?")) return;
-    resetStore(storeId);
-    setForm(getStore(storeId));
+    setError(null);
+    try {
+      await resetStore(storeId);
+      setForm(getStore(storeId));
+    } catch (err: any) {
+      setError(err?.message ?? "Falha ao restaurar configurações.");
+    }
   }
 
   const conditionsText = form.footerConditions.join("\n");
