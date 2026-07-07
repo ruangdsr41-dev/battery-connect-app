@@ -145,7 +145,26 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </Field>
+      <Field label="Endereço (opcional)" className="md:col-span-2">
+        <input
+          type="text"
+          value={form.endereco ?? ""}
+          onChange={(e) => set("endereco", e.target.value)}
+          placeholder="Ex.: Av. Tancredo Neves, 1000 — Salvador/BA"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        />
+      </Field>
+      <Field label="CNPJ (opcional)">
+        <input
+          type="text"
+          value={form.cnpj ?? ""}
+          onChange={(e) => set("cnpj", e.target.value)}
+          placeholder="00.000.000/0000-00"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        />
+      </Field>
       <Field label="Wordmark (marca no cabeçalho)" className="md:col-span-2">
+
         <input
           type="text"
           value={form.wordmark}
