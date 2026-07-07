@@ -13,8 +13,10 @@ import {
   type QuoteItem,
 } from "@/lib/quote-store";
 import { STORE_LIST, STORES, type StoreId, type StoreIdentity } from "@/lib/stores";
+import { getStore, STORE_CONFIG_EVENT } from "@/lib/store-config";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { parseBRL, formatBRL } from "@/lib/price";
+import { getCatalogFallbackImage } from "@/lib/catalog-image";
 
 
 function effectivePrice(it: QuoteItem): number {
