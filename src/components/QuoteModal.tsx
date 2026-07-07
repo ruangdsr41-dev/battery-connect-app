@@ -746,9 +746,6 @@ function QuoteRow({
           style={{ width: 46, height: 46, objectFit: "contain" }}
         />
       </td>
-          style={{ width: 46, height: 46, objectFit: "contain" }}
-        />
-      </td>
       <td className="px-2 py-2">
         <div className="font-bold">{it.sku}</div>
         <div style={{ color: "#555" }}>
