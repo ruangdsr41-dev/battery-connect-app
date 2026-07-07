@@ -735,14 +735,12 @@ const QuotePreview = forwardRef<
 function QuoteRow({
   it,
   store,
-  printMode,
   onQty,
   onPrice,
   onRemove,
 }: {
   it: QuoteItem;
-  store: (typeof STORES)[StoreId];
-  printMode: boolean;
+  store: StoreIdentity;
   onQty: (sku: string, qty: number) => void;
   onPrice: (sku: string, price: number | undefined) => void;
   onRemove: (sku: string) => void;
@@ -754,12 +752,13 @@ function QuoteRow({
       ? it.precoOverride.toFixed(2).replace(".", ",")
       : it.precoVenda ?? "";
 
-  // estado local para não interromper o typing
   const [priceDraft, setPriceDraft] = useState<string>(canonicalPrice);
   const [focused, setFocused] = useState(false);
   useEffect(() => {
     if (!focused) setPriceDraft(canonicalPrice);
   }, [canonicalPrice, focused]);
+
+  const unitText = isFinite(unit) ? formatBRL(unit) : "—";
 
   return (
     <tr style={{ borderBottom: "1px solid #e5e5e5" }} className="align-top">
@@ -788,46 +787,40 @@ function QuoteRow({
       <td className="px-2 py-2 text-center">{it.cca || "—"}</td>
       <td className="px-2 py-2 text-center">{it.garantia || "—"}</td>
       <td className="px-2 py-2 text-center">
-        {printMode ? (
-          <span>{it.qty}</span>
-        ) : (
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={it.qty}
-            onChange={(e) => onQty(it.sku, Number(e.target.value))}
-            className="w-14 rounded border border-neutral-300 px-1 py-0.5 text-center text-[12px]"
-          />
-        )}
+        <input
+          type="number"
+          min={1}
+          max={999}
+          value={it.qty}
+          data-print-value={String(it.qty)}
+          onChange={(e) => onQty(it.sku, Number(e.target.value))}
+          className="w-14 rounded border border-neutral-300 px-1 py-0.5 text-center text-[12px]"
+        />
       </td>
       <td className="px-2 py-2 text-right">
-        {printMode ? (
-          <span>{isFinite(unit) ? formatBRL(unit) : "—"}</span>
-        ) : (
-          <input
-            type="text"
-            inputMode="decimal"
-            value={priceDraft}
-            onFocus={() => setFocused(true)}
-            onBlur={() => {
-              setFocused(false);
-              const t = priceDraft.trim();
-              if (!t) return onPrice(it.sku, undefined);
-              const n = parseBRL(t);
-              onPrice(it.sku, isFinite(n) ? n : undefined);
-            }}
-            onChange={(e) => {
-              const v = e.target.value;
-              setPriceDraft(v);
-              if (!v.trim()) return onPrice(it.sku, undefined);
-              const n = parseBRL(v);
-              if (isFinite(n)) onPrice(it.sku, n);
-            }}
-            className="w-24 rounded border border-neutral-300 px-1 py-0.5 text-right text-[12px]"
-            title="Editar preço apenas neste orçamento"
-          />
-        )}
+        <input
+          type="text"
+          inputMode="decimal"
+          value={priceDraft}
+          data-print-value={unitText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            const t = priceDraft.trim();
+            if (!t) return onPrice(it.sku, undefined);
+            const n = parseBRL(t);
+            onPrice(it.sku, isFinite(n) ? n : undefined);
+          }}
+          onChange={(e) => {
+            const v = e.target.value;
+            setPriceDraft(v);
+            if (!v.trim()) return onPrice(it.sku, undefined);
+            const n = parseBRL(v);
+            if (isFinite(n)) onPrice(it.sku, n);
+          }}
+          className="w-24 rounded border border-neutral-300 px-1 py-0.5 text-right text-[12px]"
+          title="Editar preço apenas neste orçamento"
+        />
       </td>
       <td
         className="px-2 py-2 text-right font-semibold"
@@ -835,18 +828,17 @@ function QuoteRow({
       >
         {isFinite(linha) ? formatBRL(linha) : "—"}
       </td>
-      {!printMode && (
-        <td className="px-2 py-2">
-          <button
-            type="button"
-            onClick={() => onRemove(it.sku)}
-            className="text-neutral-400 hover:text-red-600"
-            aria-label="Remover"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </td>
-      )}
+      <td className="px-2 py-2" data-print-hide="true">
+        <button
+          type="button"
+          onClick={() => onRemove(it.sku)}
+          className="text-neutral-400 hover:text-red-600"
+          aria-label="Remover"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
     </tr>
   );
 }
+
