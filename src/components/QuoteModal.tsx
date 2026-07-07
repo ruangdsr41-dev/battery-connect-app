@@ -358,7 +358,6 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
               storeId={storeId}
               total={total}
               showTotal={showTotal}
-              store={store}
               onQty={(sku, q) => {
                 setQty(sku, q);
                 setItems(listQuote());
