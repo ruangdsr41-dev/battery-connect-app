@@ -124,12 +124,14 @@ export function AppShell({
             icon={<Star />}
             label="Favoritos"
           />
-          <TabLink
-            to="/configuracoes"
-            active={tab.startsWith("/configuracoes")}
-            icon={<Settings />}
-            label="Config"
-          />
+          {isMaster && (
+            <TabLink
+              to="/configuracoes"
+              active={tab.startsWith("/configuracoes")}
+              icon={<Settings />}
+              label="Config"
+            />
+          )}
           {isMaster && (
             <>
               <TabLink
