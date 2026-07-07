@@ -12,9 +12,11 @@ import {
   QUOTE_EVENT,
   type QuoteItem,
 } from "@/lib/quote-store";
-import { STORE_LIST, STORES, type StoreId, type StoreIdentity } from "@/lib/stores";
+import { STORE_LIST, type StoreId, type StoreIdentity } from "@/lib/stores";
+import { getStore, STORE_CONFIG_EVENT } from "@/lib/store-config";
 import batproLogo from "@/assets/batpro-logo.png.asset.json";
 import { parseBRL, formatBRL } from "@/lib/price";
+import { getCatalogFallbackImage } from "@/lib/catalog-image";
 
 
 function effectivePrice(it: QuoteItem): number {
@@ -32,12 +34,15 @@ function sanitizeUrl(u?: string | null): string | undefined {
 }
 
 /**
- * Regra V6: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
- * O <BatteryImage /> no catálogo mostra a URL da planilha e cai no logo BatPro
- * quando falta ou falha — nunca usa a arte fixa da Moura.
+ * Regra V8: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
+ * Cadeia de fallback: URL da planilha -> arte por categoria/tecnologia
+ * -> logo BATPRO. Nunca usar a logo BATPRO como padrão quando o item tiver
+ * imagem cadastrada ou uma arte de categoria disponível.
  */
 function resolvedImage(it: QuoteItem): string {
-  return sanitizeUrl(it.imagemUrl) ?? batproLogo.url;
+  const url = sanitizeUrl(it.imagemUrl);
+  if (url) return url;
+  return getCatalogFallbackImage({ categoria: it.categoria, tecnologia: it.tecnologia });
 }
 
 
@@ -79,7 +84,7 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   const [showTotal, setShowTotal] = useState(true);
   const [busy, setBusy] = useState<"pdf" | "png" | "copy" | null>(null);
   const [copied, setCopied] = useState(false);
-  const [printMode, setPrintMode] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,7 +93,13 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener(QUOTE_EVENT, sync);
   }, []);
 
-  const store = STORES[storeId];
+  useEffect(() => {
+    const bump = () => setConfigVersion((v) => v + 1);
+    window.addEventListener(STORE_CONFIG_EVENT, bump);
+    return () => window.removeEventListener(STORE_CONFIG_EVENT, bump);
+  }, []);
+
+  const store = useMemo(() => getStore(storeId), [storeId, configVersion]);
   const total = useMemo(
     () =>
       items.reduce((acc, it) => {
@@ -98,42 +109,76 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     [items],
   );
 
-  async function withPrintMode<T>(fn: () => Promise<T>): Promise<T> {
-    setPrintMode(true);
-    // esperar o React commitar o novo modo
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
+  /**
+   * Captura o preview usando um clone montado FORA da tela.
+   * Assim o layout visível nunca muda durante a exportação, resolvendo
+   * o "deslocamento" reclamado na especificação v8.
+   */
+  async function captureClone(pixelRatio: number): Promise<{ dataUrl: string; width: number; height: number }> {
+    const src = printRef.current;
+    if (!src) throw new Error("no-print-ref");
+    const rect = src.getBoundingClientRect();
+    const width = Math.max(src.scrollWidth, Math.ceil(rect.width));
+
+    const stage = document.createElement("div");
+    stage.style.cssText = [
+      "position:fixed",
+      "left:-100000px",
+      "top:0",
+      "pointer-events:none",
+      "z-index:-1",
+      "background:#ffffff",
+      `width:${width}px`,
+    ].join(";");
+
+    const clone = src.cloneNode(true) as HTMLElement;
+    clone.style.maxWidth = "none";
+    clone.style.width = `${width}px`;
+    clone.style.margin = "0";
+    clone.style.boxShadow = "none";
+    clone.style.transform = "none";
+
+    // Substitui controles interativos por texto estático (limpa a exportação).
+    clone.querySelectorAll<HTMLElement>("[data-print-hide='true']").forEach((el) => el.remove());
+    clone.querySelectorAll<HTMLInputElement>("input[data-print-value]").forEach((input) => {
+      const span = document.createElement("span");
+      span.textContent = input.getAttribute("data-print-value") || input.value;
+      span.style.cssText = "display:inline-block;padding:0 2px;";
+      input.replaceWith(span);
+    });
+
+    stage.appendChild(clone);
+    document.body.appendChild(stage);
+
     try {
-      return await fn();
+      await waitForImages(clone);
+      // um frame para garantir que layout final foi aplicado
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      const height = clone.scrollHeight;
+      const dataUrl = await toPng(clone, {
+        pixelRatio,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        width,
+        height,
+        canvasWidth: width,
+        canvasHeight: height,
+        style: { transform: "none", margin: "0" },
+      });
+      return { dataUrl, width, height };
     } finally {
-      setPrintMode(false);
+      stage.remove();
     }
   }
 
   async function exportPNG() {
     setBusy("png");
     try {
-      await withPrintMode(async () => {
-        const node = printRef.current;
-        if (!node) return;
-        await waitForImages(node);
-        const w = node.scrollWidth;
-        const h = node.scrollHeight;
-        const dataUrl = await toPng(node, {
-          pixelRatio: 2.5,
-          backgroundColor: "#ffffff",
-          cacheBust: true,
-          width: w,
-          height: h,
-          canvasWidth: w,
-          canvasHeight: h,
-          style: { transform: "none" },
-        });
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = `Orcamento_${slugStore(store.nome)}_${today()}.png`;
-        a.click();
-      });
+      const { dataUrl } = await captureClone(2.5);
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `Orcamento_${slugStore(store.nome)}_${today()}.png`;
+      a.click();
     } catch (err) {
       console.error("[BATPRO] PNG export falhou:", err);
       alert("Não foi possível gerar o PNG.");
@@ -145,59 +190,43 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
   async function exportPDF() {
     setBusy("pdf");
     try {
-      await withPrintMode(async () => {
-        const node = printRef.current;
-        if (!node) return;
-        await waitForImages(node);
-        const w = node.scrollWidth;
-        const h = node.scrollHeight;
-        const dataUrl = await toPng(node, {
-          pixelRatio: 2,
-          backgroundColor: "#ffffff",
-          cacheBust: true,
-          width: w,
-          height: h,
-          canvasWidth: w,
-          canvasHeight: h,
-          style: { transform: "none" },
-        });
-        const canvas = await dataUrlToCanvas(dataUrl);
+      const { dataUrl } = await captureClone(2);
+      const canvas = await dataUrlToCanvas(dataUrl);
 
-        const pdf = new jsPDF({ unit: "pt", format: "a4" });
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 20;
-        const contentW = pageW - margin * 2;
-        const contentH = pageH - margin * 2;
-        const scale = contentW / canvas.width;
-        const totalHeightPt = canvas.height * scale;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentW = pageW - margin * 2;
+      const contentH = pageH - margin * 2;
+      const scale = contentW / canvas.width;
+      const totalHeightPt = canvas.height * scale;
 
-        if (totalHeightPt <= contentH) {
-          const jpeg = canvas.toDataURL("image/jpeg", 0.94);
-          pdf.addImage(jpeg, "JPEG", margin, margin, contentW, totalHeightPt);
-        } else {
-          const pxPerPage = contentH / scale;
-          let sy = 0;
-          let pageIdx = 0;
-          while (sy < canvas.height) {
-            const sliceH = Math.min(pxPerPage, canvas.height - sy);
-            const tmp = document.createElement("canvas");
-            tmp.width = canvas.width;
-            tmp.height = sliceH;
-            const ctx = tmp.getContext("2d");
-            if (!ctx) break;
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, tmp.width, tmp.height);
-            ctx.drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-            const jpeg = tmp.toDataURL("image/jpeg", 0.94);
-            if (pageIdx > 0) pdf.addPage();
-            pdf.addImage(jpeg, "JPEG", margin, margin, contentW, sliceH * scale);
-            sy += sliceH;
-            pageIdx += 1;
-          }
+      if (totalHeightPt <= contentH) {
+        const jpeg = canvas.toDataURL("image/jpeg", 0.94);
+        pdf.addImage(jpeg, "JPEG", margin, margin, contentW, totalHeightPt);
+      } else {
+        const pxPerPage = contentH / scale;
+        let sy = 0;
+        let pageIdx = 0;
+        while (sy < canvas.height) {
+          const sliceH = Math.min(pxPerPage, canvas.height - sy);
+          const tmp = document.createElement("canvas");
+          tmp.width = canvas.width;
+          tmp.height = sliceH;
+          const ctx = tmp.getContext("2d");
+          if (!ctx) break;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, tmp.width, tmp.height);
+          ctx.drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          const jpeg = tmp.toDataURL("image/jpeg", 0.94);
+          if (pageIdx > 0) pdf.addPage();
+          pdf.addImage(jpeg, "JPEG", margin, margin, contentW, sliceH * scale);
+          sy += sliceH;
+          pageIdx += 1;
         }
-        pdf.save(`Orcamento_${slugStore(store.nome)}_${today()}.pdf`);
-      });
+      }
+      pdf.save(`Orcamento_${slugStore(store.nome)}_${today()}.pdf`);
     } catch (err) {
       console.error("[BATPRO] PDF export falhou:", err);
       alert("Não foi possível gerar o PDF.");
@@ -329,7 +358,6 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
               storeId={storeId}
               total={total}
               showTotal={showTotal}
-              printMode={printMode}
               onQty={(sku, q) => {
                 setQty(sku, q);
                 setItems(listQuote());
@@ -460,9 +488,32 @@ function buildWhatsAppText({
     .replace("{cliente}", clienteTag)
     .replace("{loja}", store.nome);
 
+  // --- Deduplicação exclusiva do WhatsApp (v8) ---
+  // Se duas baterias têm mesma marca + mesma Ah, mantém apenas a de MAIOR preço.
+  // Se além disso o preço for igual, mantém apenas uma ocorrência.
+  const normAh = (v?: string) =>
+    (v ?? "").toString().trim().toUpperCase().replace(/\s+/g, "").replace(/AH$/, "");
+  const normMarca = (v?: string) => (v ?? "").toString().trim().toUpperCase();
+  const dedupMap = new Map<string, QuoteItem>();
+  for (const it of items) {
+    const key = `${normMarca(it.marca)}|${normAh(it.amperagem)}`;
+    const existing = dedupMap.get(key);
+    if (!existing) {
+      dedupMap.set(key, it);
+      continue;
+    }
+    const pNew = effectivePrice(it);
+    const pOld = effectivePrice(existing);
+    const vNew = isFinite(pNew) ? pNew : -Infinity;
+    const vOld = isFinite(pOld) ? pOld : -Infinity;
+    if (vNew > vOld) dedupMap.set(key, it);
+    // preço igual ou menor -> mantém existing (dedup para uma única linha)
+  }
+  const dedupItems = Array.from(dedupMap.values());
+
   // agrupa por garantia
   const groups = new Map<string, QuoteItem[]>();
-  for (const it of items) {
+  for (const it of dedupItems) {
     const g = (it.garantia || "Sem garantia informada").toString();
     const arr = groups.get(g) ?? [];
     arr.push(it);
@@ -529,23 +580,20 @@ const QuotePreview = forwardRef<
     storeId: StoreId;
     total: number;
     showTotal: boolean;
-    printMode: boolean;
     onQty: (sku: string, qty: number) => void;
     onPrice: (sku: string, price: number | undefined) => void;
     onRemove: (sku: string) => void;
   }
 >(function QuotePreview(
-  { items, cliente, telefone, obs, storeId, total, showTotal, printMode, onQty, onPrice, onRemove },
+  { items, cliente, telefone, obs, storeId, total, showTotal, onQty, onPrice, onRemove },
   ref,
 ) {
-  const store = STORES[storeId];
+  const store = getStore(storeId);
   const now = new Date();
   const dataStr = now.toLocaleDateString("pt-BR");
   const validade = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
   const headerBg = store.colors.headerBg;
   const headerText = "#ffffff";
-  // Chip da logo: quando a arte já tem texto branco (Casa), evitar chip branco
-  // que apagaria a marca — usar o próprio fundo do cabeçalho.
   const logoChipBg = store.logoOnDark ? store.colors.headerBg : store.logoChipBg;
 
   return (
@@ -626,7 +674,7 @@ const QuotePreview = forwardRef<
               <th className="px-2 py-2 text-center">Qtd</th>
               <th className="px-2 py-2 text-right">Unit.</th>
               <th className="px-2 py-2 text-right">Total</th>
-              {!printMode && <th className="px-2 py-2"></th>}
+              <th className="px-2 py-2" data-print-hide="true"></th>
             </tr>
           </thead>
           <tbody>
@@ -635,7 +683,6 @@ const QuotePreview = forwardRef<
                 key={it.sku}
                 it={it}
                 store={store}
-                printMode={printMode}
                 onQty={onQty}
                 onPrice={onPrice}
                 onRemove={onRemove}
@@ -645,7 +692,7 @@ const QuotePreview = forwardRef<
           {showTotal && (
             <tfoot>
               <tr>
-                <td colSpan={printMode ? 7 : 7} className="px-2 py-3 text-right text-[13px] font-semibold">
+                <td colSpan={7} className="px-2 py-3 text-right text-[13px] font-semibold">
                   Total estimado
                 </td>
                 <td
@@ -654,7 +701,7 @@ const QuotePreview = forwardRef<
                 >
                   {formatBRL(total)}
                 </td>
-                {!printMode && <td />}
+                <td data-print-hide="true" />
               </tr>
             </tfoot>
           )}
@@ -711,14 +758,12 @@ const QuotePreview = forwardRef<
 function QuoteRow({
   it,
   store,
-  printMode,
   onQty,
   onPrice,
   onRemove,
 }: {
   it: QuoteItem;
-  store: (typeof STORES)[StoreId];
-  printMode: boolean;
+  store: StoreIdentity;
   onQty: (sku: string, qty: number) => void;
   onPrice: (sku: string, price: number | undefined) => void;
   onRemove: (sku: string) => void;
@@ -730,12 +775,13 @@ function QuoteRow({
       ? it.precoOverride.toFixed(2).replace(".", ",")
       : it.precoVenda ?? "";
 
-  // estado local para não interromper o typing
   const [priceDraft, setPriceDraft] = useState<string>(canonicalPrice);
   const [focused, setFocused] = useState(false);
   useEffect(() => {
     if (!focused) setPriceDraft(canonicalPrice);
   }, [canonicalPrice, focused]);
+
+  const unitText = isFinite(unit) ? formatBRL(unit) : "—";
 
   return (
     <tr style={{ borderBottom: "1px solid #e5e5e5" }} className="align-top">
@@ -764,46 +810,40 @@ function QuoteRow({
       <td className="px-2 py-2 text-center">{it.cca || "—"}</td>
       <td className="px-2 py-2 text-center">{it.garantia || "—"}</td>
       <td className="px-2 py-2 text-center">
-        {printMode ? (
-          <span>{it.qty}</span>
-        ) : (
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={it.qty}
-            onChange={(e) => onQty(it.sku, Number(e.target.value))}
-            className="w-14 rounded border border-neutral-300 px-1 py-0.5 text-center text-[12px]"
-          />
-        )}
+        <input
+          type="number"
+          min={1}
+          max={999}
+          value={it.qty}
+          data-print-value={String(it.qty)}
+          onChange={(e) => onQty(it.sku, Number(e.target.value))}
+          className="w-14 rounded border border-neutral-300 px-1 py-0.5 text-center text-[12px]"
+        />
       </td>
       <td className="px-2 py-2 text-right">
-        {printMode ? (
-          <span>{isFinite(unit) ? formatBRL(unit) : "—"}</span>
-        ) : (
-          <input
-            type="text"
-            inputMode="decimal"
-            value={priceDraft}
-            onFocus={() => setFocused(true)}
-            onBlur={() => {
-              setFocused(false);
-              const t = priceDraft.trim();
-              if (!t) return onPrice(it.sku, undefined);
-              const n = parseBRL(t);
-              onPrice(it.sku, isFinite(n) ? n : undefined);
-            }}
-            onChange={(e) => {
-              const v = e.target.value;
-              setPriceDraft(v);
-              if (!v.trim()) return onPrice(it.sku, undefined);
-              const n = parseBRL(v);
-              if (isFinite(n)) onPrice(it.sku, n);
-            }}
-            className="w-24 rounded border border-neutral-300 px-1 py-0.5 text-right text-[12px]"
-            title="Editar preço apenas neste orçamento"
-          />
-        )}
+        <input
+          type="text"
+          inputMode="decimal"
+          value={priceDraft}
+          data-print-value={unitText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            const t = priceDraft.trim();
+            if (!t) return onPrice(it.sku, undefined);
+            const n = parseBRL(t);
+            onPrice(it.sku, isFinite(n) ? n : undefined);
+          }}
+          onChange={(e) => {
+            const v = e.target.value;
+            setPriceDraft(v);
+            if (!v.trim()) return onPrice(it.sku, undefined);
+            const n = parseBRL(v);
+            if (isFinite(n)) onPrice(it.sku, n);
+          }}
+          className="w-24 rounded border border-neutral-300 px-1 py-0.5 text-right text-[12px]"
+          title="Editar preço apenas neste orçamento"
+        />
       </td>
       <td
         className="px-2 py-2 text-right font-semibold"
@@ -811,18 +851,17 @@ function QuoteRow({
       >
         {isFinite(linha) ? formatBRL(linha) : "—"}
       </td>
-      {!printMode && (
-        <td className="px-2 py-2">
-          <button
-            type="button"
-            onClick={() => onRemove(it.sku)}
-            className="text-neutral-400 hover:text-red-600"
-            aria-label="Remover"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </td>
-      )}
+      <td className="px-2 py-2" data-print-hide="true">
+        <button
+          type="button"
+          onClick={() => onRemove(it.sku)}
+          className="text-neutral-400 hover:text-red-600"
+          aria-label="Remover"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
     </tr>
   );
 }
+

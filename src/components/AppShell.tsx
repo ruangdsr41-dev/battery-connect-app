@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users, Moon, Sun, BookOpen } from "lucide-react";
+import { Search, Star, Wifi, WifiOff, BarChart3, LogOut, Users, Moon, Sun, BookOpen, Settings } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
@@ -116,6 +116,12 @@ export function AppShell({
             active={tab.startsWith("/favoritos")}
             icon={<Star />}
             label="Favoritos"
+          />
+          <TabLink
+            to="/configuracoes"
+            active={tab.startsWith("/configuracoes")}
+            icon={<Settings />}
+            label="Config"
           />
           {isMaster && (
             <>

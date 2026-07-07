@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router";
 import { X, ArrowUpDown, Filter, PackageX, Loader2, Check } from "lucide-react";
 import { getCatalog, normalizeText, type CatalogProduct } from "@/lib/sheet.functions";
 import { BatteryImage } from "@/components/BatteryImage";
+import { getCatalogFallbackImage } from "@/lib/catalog-image";
 import { SelectAllButton } from "@/components/SelectAllButton";
 import { isInQuote, toggleQuote, QUOTE_EVENT } from "@/lib/quote-store";
 
@@ -262,6 +263,7 @@ export function ProductCard({ p, isMaster = false }: { p: CatalogProduct; isMast
       <div className="flex items-start gap-3 pl-7">
         <BatteryImage
           src={p.imagemUrl}
+          fallback={getCatalogFallbackImage({ categoria: p.categoria, tecnologia: p.tecnologia })}
           alt={p.sku || `${p.marca} ${p.modelo ?? ""}`.trim()}
           className="h-16 w-16 shrink-0 rounded-md bg-muted/40 object-contain p-1"
         />
