@@ -660,7 +660,6 @@ const QuotePreview = forwardRef<
                 key={it.sku}
                 it={it}
                 store={store}
-                printMode={printMode}
                 onQty={onQty}
                 onPrice={onPrice}
                 onRemove={onRemove}
