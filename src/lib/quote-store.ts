@@ -53,6 +53,58 @@ export function isInQuote(sku?: string): boolean {
   return !!read()[sku];
 }
 
+function snapshot(p: CatalogProduct): QuoteItem {
+  return {
+    sku: p.sku,
+    marca: p.marca,
+    modelo: p.modelo,
+    descricao: p.descricao,
+    categoria: p.categoria,
+    tecnologia: p.tecnologia,
+    amperagem: p.amperagem,
+    cca: p.cca,
+    tensao: p.tensao,
+    garantia: p.garantia,
+    precoVenda: p.precoVenda,
+    imagemUrl: p.imagemUrl,
+    qty: 1,
+  };
+}
+
+export function addToQuote(p: CatalogProduct): boolean {
+  if (!p.sku) return false;
+  const map = read();
+  if (map[p.sku]) return false;
+  map[p.sku] = snapshot(p);
+  write(map);
+  return true;
+}
+
+export function addManyToQuote(list: CatalogProduct[]): number {
+  const map = read();
+  let added = 0;
+  for (const p of list) {
+    if (!p.sku || map[p.sku]) continue;
+    map[p.sku] = snapshot(p);
+    added += 1;
+  }
+  if (added) write(map);
+  return added;
+}
+
+export function removeManyFromQuote(skus: string[]): number {
+  const map = read();
+  let removed = 0;
+  for (const s of skus) {
+    if (map[s]) {
+      delete map[s];
+      removed += 1;
+    }
+  }
+  if (removed) write(map);
+  return removed;
+}
+
 export function toggleQuote(p: CatalogProduct): boolean {
   if (!p.sku) return false;
   const map = read();
@@ -61,7 +113,6 @@ export function toggleQuote(p: CatalogProduct): boolean {
     write(map);
     return false;
   }
-  // Snapshot profundo — deep copy dos campos, sem referências ao catálogo.
   map[p.sku] = {
     sku: p.sku,
     marca: p.marca,
