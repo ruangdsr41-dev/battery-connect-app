@@ -192,6 +192,7 @@ function CatalogoPage() {
             {sortDir === "asc" ? "A-Z ↑" : "Z-A ↓"}
           </button>
           <span className="text-muted-foreground">{filtered.length} produtos</span>
+          <SelectAllButton items={filtered} />
         </div>
       </div>
 
