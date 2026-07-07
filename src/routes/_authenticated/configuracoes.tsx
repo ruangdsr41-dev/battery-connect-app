@@ -1,13 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, RotateCcw, Save, Check } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { STORES, STORE_LIST, type StoreId, type StoreIdentity } from "@/lib/stores";
-import { getStore, saveStore, resetStore, STORE_CONFIG_EVENT } from "@/lib/store-config";
+import { getStore, saveStore, resetStore, STORE_CONFIG_EVENT, loadStoreConfigs } from "@/lib/store-config";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — BATPRO" }] }),
+  beforeLoad: ({ context }) => {
+    if (!context.isMaster) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: ConfiguracoesPage,
 });
 
