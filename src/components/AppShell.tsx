@@ -35,6 +35,11 @@ export function AppShell({
     };
   }, []);
 
+  useEffect(() => {
+    // Carrega configurações globais das lojas (compartilhadas via banco).
+    loadStoreConfigs().catch(() => {});
+  }, []);
+
   const tab = location.pathname;
 
   async function handleSignOut() {
