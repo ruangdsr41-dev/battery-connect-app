@@ -488,9 +488,32 @@ function buildWhatsAppText({
     .replace("{cliente}", clienteTag)
     .replace("{loja}", store.nome);
 
+  // --- Deduplicação exclusiva do WhatsApp (v8) ---
+  // Se duas baterias têm mesma marca + mesma Ah, mantém apenas a de MAIOR preço.
+  // Se além disso o preço for igual, mantém apenas uma ocorrência.
+  const normAh = (v?: string) =>
+    (v ?? "").toString().trim().toUpperCase().replace(/\s+/g, "").replace(/AH$/, "");
+  const normMarca = (v?: string) => (v ?? "").toString().trim().toUpperCase();
+  const dedupMap = new Map<string, QuoteItem>();
+  for (const it of items) {
+    const key = `${normMarca(it.marca)}|${normAh(it.amperagem)}`;
+    const existing = dedupMap.get(key);
+    if (!existing) {
+      dedupMap.set(key, it);
+      continue;
+    }
+    const pNew = effectivePrice(it);
+    const pOld = effectivePrice(existing);
+    const vNew = isFinite(pNew) ? pNew : -Infinity;
+    const vOld = isFinite(pOld) ? pOld : -Infinity;
+    if (vNew > vOld) dedupMap.set(key, it);
+    // preço igual ou menor -> mantém existing (dedup para uma única linha)
+  }
+  const dedupItems = Array.from(dedupMap.values());
+
   // agrupa por garantia
   const groups = new Map<string, QuoteItem[]>();
-  for (const it of items) {
+  for (const it of dedupItems) {
     const g = (it.garantia || "Sem garantia informada").toString();
     const arr = groups.get(g) ?? [];
     arr.push(it);
