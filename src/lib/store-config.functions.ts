@@ -3,7 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export type StoreOverrideDTO = Record<string, unknown>;
+export type StoreOverrideDTO = Record<string, any>;
 
 export const fetchStoreConfigs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
