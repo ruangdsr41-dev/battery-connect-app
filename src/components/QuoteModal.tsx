@@ -211,7 +211,7 @@ export function QuoteModal({ onClose }: { onClose: () => void }) {
     try {
       const txt = buildWhatsAppText({
         items,
-        storeName: store.nome,
+        store,
         cliente,
         total,
         showTotal,
