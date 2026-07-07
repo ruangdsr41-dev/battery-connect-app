@@ -444,20 +444,21 @@ function dataUrlToCanvas(dataUrl: string): Promise<HTMLCanvasElement> {
 
 function buildWhatsAppText({
   items,
-  storeName,
+  store,
   cliente,
   total,
   showTotal,
 }: {
   items: QuoteItem[];
-  storeName: string;
+  store: StoreIdentity;
   cliente: string;
   total: number;
   showTotal: boolean;
 }): string {
-  const saud = cliente
-    ? `Olá, ${cliente}! Segue seu orçamento da *${storeName}*:`
-    : `Olá! Segue seu orçamento da *${storeName}*:`;
+  const clienteTag = cliente ? `, ${cliente}` : "";
+  const saud = store.whatsappIntro
+    .replace("{cliente}", clienteTag)
+    .replace("{loja}", store.nome);
 
   // agrupa por garantia
   const groups = new Map<string, QuoteItem[]>();
@@ -478,7 +479,15 @@ function buildWhatsAppText({
   for (const [g, list] of ordered) {
     const gLabel = /^\d+$/.test(g) ? `${g} Meses` : g;
     linhas.push(`🛡️ *Garantia: ${gLabel}*`);
-    for (const it of list) {
+    // dentro do grupo: maior preço primeiro
+    const sortedList = [...list].sort((a, b) => {
+      const pa = effectivePrice(a);
+      const pb = effectivePrice(b);
+      const va = isFinite(pa) ? pa : -Infinity;
+      const vb = isFinite(pb) ? pb : -Infinity;
+      return vb - va;
+    });
+    for (const it of sortedList) {
       const p = effectivePrice(it);
       const preco = isFinite(p) ? formatBRL(p) : "sob consulta";
       const marca = it.marca ?? "";
@@ -496,12 +505,17 @@ function buildWhatsAppText({
   }
 
   linhas.push("📌 *Condições:*");
-  linhas.push("• Valores condicionados à devolução da bateria usada (base de troca).");
-  linhas.push("• Pagamento no local em até 10x sem juros no cartão.");
-  linhas.push("• Taxa de visita técnica de R$ 45,00 caso o problema não seja a bateria.");
+  for (const c of store.footerConditions) {
+    linhas.push(`• ${c}`);
+  }
+  if (store.whatsappOutro) {
+    linhas.push("");
+    linhas.push(store.whatsappOutro);
+  }
 
   return linhas.join("\n");
 }
+
 
 // -------- Preview renderizado (fonte para PNG/PDF) --------
 
