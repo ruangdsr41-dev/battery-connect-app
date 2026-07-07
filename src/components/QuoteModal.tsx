@@ -34,12 +34,15 @@ function sanitizeUrl(u?: string | null): string | undefined {
 }
 
 /**
- * Regra V6: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
- * O <BatteryImage /> no catálogo mostra a URL da planilha e cai no logo BatPro
- * quando falta ou falha — nunca usa a arte fixa da Moura.
+ * Regra V8: usar EXATAMENTE a mesma imagem exibida no card do catálogo.
+ * Cadeia de fallback: URL da planilha -> arte por categoria/tecnologia
+ * -> logo BATPRO. Nunca usar a logo BATPRO como padrão quando o item tiver
+ * imagem cadastrada ou uma arte de categoria disponível.
  */
 function resolvedImage(it: QuoteItem): string {
-  return sanitizeUrl(it.imagemUrl) ?? batproLogo.url;
+  const url = sanitizeUrl(it.imagemUrl);
+  if (url) return url;
+  return getCatalogFallbackImage({ categoria: it.categoria, tecnologia: it.tecnologia });
 }
 
 
