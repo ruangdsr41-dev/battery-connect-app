@@ -218,7 +218,7 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
         </p>
       </Field>
 
-      <div className="flex items-center gap-2 md:col-span-2">
+      <div className="flex flex-wrap items-center gap-2 md:col-span-2">
         <button
           type="button"
           onClick={handleSave}
@@ -235,6 +235,9 @@ function StoreEditor({ storeId }: { storeId: StoreId }) {
         >
           <RotateCcw className="h-4 w-4" /> Restaurar padrão
         </button>
+        {error && (
+          <span className="text-xs font-medium text-destructive">{error}</span>
+        )}
       </div>
     </div>
   );
